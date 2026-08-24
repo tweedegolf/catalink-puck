@@ -132,8 +132,8 @@ impl Broker {
 
         let millis = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
 
-        let mut buf = itoa::Buffer::new();
-        let millis = buf.format(millis);
+        let mut buf = core::fmt::NumBuffer::new();
+        let millis = millis.format_into(&mut buf);
 
         let size = millis.len();
         let rest = self.raw_command(PacketType::Hello, millis.as_bytes())?;

@@ -1,3 +1,6 @@
 [workspace]
 resolver = "3"
 members = ["puckfs"]
+
+[workspace.package]
+rust-version = "1.98"
