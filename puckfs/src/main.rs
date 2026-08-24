@@ -3,6 +3,8 @@ use std::net;
 
 use thiserror::Error;
 
+mod ringbuf;
+
 macro_rules! debug_println {
     ($($x: tt),*) => {
         #[cfg(debug_assertions)]
@@ -106,11 +108,12 @@ struct Response<'a> {
 
 const TMP_KEYID: u32 = 54941102;
 
-/* the overhead needed for ad, nonce, ack, cmd, msg and auth tag */
-const OVERHEAD: usize = 54;
+/* amount of entries in the ringbuf; determines the maximum message size icw. MTU */
+const RINGBUF_ENTRIES: usize = 1 << 4;
 
-/* the absolute maximum MTU size on the internet */
+/* the minimum MTU size needed */
 const MIN_PACKET_LEN: usize = 8 + 24 + 4 + 2 + 16;
+
 /* the absolute maximum MTU size on the internet */
 const MAX_MTU_SIZE: usize = 1472;
 
@@ -123,8 +126,8 @@ pub struct Broker {
     MTU: usize,
     key_id: u32,
     key: SecretKey,
-    send_seqno: u32,
-    recv_seqno: u32,
+    send: ringbuf::Buffer<RINGBUF_ENTRIES>,
+    recv: ringbuf::Buffer<RINGBUF_ENTRIES>,
 }
 
 impl Broker {
@@ -141,8 +144,8 @@ impl Broker {
             socket,
             MTU: 1500,
             key_id: TMP_KEYID,
-            send_seqno: 0,
-            recv_seqno: 0,
+            send: ringbuf::Buffer::new(),
+            recv: ringbuf::Buffer::new(),
             key,
         })
     }
@@ -150,12 +153,12 @@ impl Broker {
     fn serialize<'a>(&self, mut cmd: PacketType, msg: &'a [u8]) -> ([u8; 8], UdpBuffer, &'a [u8]) {
         let mut hdr = [0u8; 8];
         hdr[0..4].copy_from_slice(&self.key_id.to_be_bytes());
-        hdr[4..8].copy_from_slice(&self.send_seqno.to_be_bytes());
+        hdr[4..8].copy_from_slice(&self.send.count().to_be_bytes());
 
         let mut payload = UdpBuffer::new();
-        payload.extend(self.recv_seqno.to_be_bytes());
+        payload.extend(self.recv.count().to_be_bytes());
 
-        let consumed = std::cmp::min(self.MTU - OVERHEAD, msg.len());
+        let consumed = std::cmp::min(self.MTU - MIN_PACKET_LEN, msg.len());
 
         if consumed < msg.len() {
             cmd = PacketType::Partial;
