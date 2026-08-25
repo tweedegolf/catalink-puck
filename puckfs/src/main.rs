@@ -1,12 +1,11 @@
-use std::io;
-use std::net;
+use std::{io, net, time::Duration};
 
 use thiserror::Error;
 
 mod ringbuf;
 
 macro_rules! debug_println {
-    ($($x: tt),*) => {
+    ($($x: expr),*) => {
         #[cfg(debug_assertions)]
         println!($($x),*);
         #[cfg(not(debug_assertions))]
@@ -16,10 +15,11 @@ macro_rules! debug_println {
 
 #[allow(unused)]
 #[repr(u16)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 enum PacketType {
     Ack,
     Partial,
+    #[default]
     Error,
     Bye,
     Hello,
@@ -69,10 +69,12 @@ enum SendError {
     Crypto(#[from] aead::Error),
     #[error("io error: {0:?}")]
     Io(#[from] io::Error),
-    #[error("packet not fully sent: {0} of {1} bytes")]
-    SlicedPacket(usize, usize),
     #[error("could not get system time")]
     TimeError(#[from] std::time::SystemTimeError),
+    #[error("already sending a message, wait")]
+    Busy,
+    #[error("message is too large")]
+    TooLarge,
 }
 
 #[derive(Error, Debug)]
@@ -87,20 +89,15 @@ enum RecvError {
     Crypto(#[from] aead::Error),
     #[error("invalid command: {0}")]
     InvalidCmd(#[from] InvalidPacketType),
-}
-
-#[derive(Error, Debug)]
-enum HandshakeError {
-    #[error("could not send hello: {0:?}")]
-    Send(#[from] SendError),
-    #[error("could not read response: {0:?}")]
-    Recv(#[from] RecvError),
+    #[error("incomplete message")]
+    Incomplete,
+    #[error("message is too large")]
+    TooLarge(#[from] arrayvec::CapacityError),
 }
 
 #[derive(Debug)]
 struct Response<'a> {
     cmd: PacketType,
-    key_id: u32,
     seq_no: u32,
     ack: u32,
     plaintext: &'a mut [u8],
@@ -108,14 +105,23 @@ struct Response<'a> {
 
 const TMP_KEYID: u32 = 54941102;
 
+/* timeout for reading from a packet */
+const READ_TIMEOUT: Duration = Duration::from_millis(1000);
+
+/* timeout for reading from a packet */
+const RETRY_TIMEOUT: Duration = Duration::from_millis(100);
+
 /* amount of entries in the ringbuf; determines the maximum message size icw. MTU */
-const RINGBUF_ENTRIES: usize = 1 << 4;
+const RINGBUF_ENTRIES: usize = 4; // 1 << 4;
 
 /* the minimum MTU size needed */
 const MIN_PACKET_LEN: usize = 8 + 24 + 4 + 2 + 16;
 
 /* the absolute maximum MTU size on the internet */
 const MAX_MTU_SIZE: usize = 1472;
+
+/* the absolute maximum message size */
+const MAX_MESSAGE_SIZE: usize = RINGBUF_ENTRIES * (MAX_MTU_SIZE - MIN_PACKET_LEN);
 
 type SecretKey = aead::Key<chacha20poly1305::XChaCha20Poly1305>;
 type UdpBuffer = arrayvec::ArrayVec<u8, MAX_MTU_SIZE>;
@@ -126,14 +132,15 @@ pub struct Broker {
     MTU: usize,
     key_id: u32,
     key: SecretKey,
-    send: ringbuf::Buffer<RINGBUF_ENTRIES>,
-    recv: ringbuf::Buffer<RINGBUF_ENTRIES>,
+    send: ringbuf::Buffer<UdpBuffer, RINGBUF_ENTRIES>,
+    recv: ringbuf::Buffer<(PacketType, UdpBuffer), RINGBUF_ENTRIES>,
 }
 
 impl Broker {
     pub fn open(addr: impl net::ToSocketAddrs) -> Result<Self, BrokerError> {
         let socket = net::UdpSocket::bind("0.0.0.0:0")?;
         socket.connect(addr)?;
+        socket.set_read_timeout(Some(READ_TIMEOUT))?;
 
         use base64ct::{Base64, Encoding};
         let mut key = SecretKey::default();
@@ -144,22 +151,17 @@ impl Broker {
             socket,
             MTU: 1500,
             key_id: TMP_KEYID,
-            send: ringbuf::Buffer::new(),
-            recv: ringbuf::Buffer::new(),
+            send: ringbuf::Buffer::new(0),
+            recv: ringbuf::Buffer::new(0),
             key,
         })
     }
 
-    fn serialize<'a>(&self, mut cmd: PacketType, msg: &'a [u8]) -> ([u8; 8], UdpBuffer, &'a [u8]) {
-        let mut hdr = [0u8; 8];
-        hdr[0..4].copy_from_slice(&self.key_id.to_be_bytes());
-        hdr[4..8].copy_from_slice(&self.send.count().to_be_bytes());
-
+    fn serialize<'a>(&self, mut cmd: PacketType, msg: &'a [u8]) -> (UdpBuffer, &'a [u8]) {
         let mut payload = UdpBuffer::new();
         payload.extend(self.recv.count().to_be_bytes());
 
         let consumed = std::cmp::min(self.MTU - MIN_PACKET_LEN, msg.len());
-
         if consumed < msg.len() {
             cmd = PacketType::Partial;
         }
@@ -169,17 +171,20 @@ impl Broker {
             .try_extend_from_slice(&msg[..consumed])
             .expect("UdpBuffer to be large enough");
 
-        (hdr, payload, &msg[consumed..])
+        (payload, &msg[consumed..])
     }
 
-    fn encode_command<'a>(
+    fn encode_command(
         &self,
-        cmd: PacketType,
-        data: &'a [u8],
-    ) -> Result<(UdpBuffer, &'a [u8]), SendError> {
-        let (ad, mut plaintext, rest) = self.serialize(cmd, data);
+        seqno: u32,
+        mut plaintext: UdpBuffer,
+    ) -> Result<UdpBuffer, aead::Error> {
+        // update the "ack" portion, since it will be out of date
+        plaintext[0..4].copy_from_slice(&self.recv.count().to_be_bytes());
 
-        debug_println!("sent: PacketType: {:?}, data: {:?}", cmd, data);
+        let mut ad = [0u8; 8];
+        ad[0..4].copy_from_slice(&self.key_id.to_be_bytes());
+        ad[4..8].copy_from_slice(&seqno.to_be_bytes());
 
         use chacha20poly1305::{
             XChaCha20Poly1305, XNonce,
@@ -197,7 +202,7 @@ impl Broker {
         buf.extend(nonce);
         buf.extend(ciphertext);
 
-        Ok((buf, rest))
+        Ok(buf)
     }
 
     fn parse_response<'a>(&self, data: &'a mut UdpBuffer) -> Result<Response<'a>, RecvError> {
@@ -248,14 +253,13 @@ impl Broker {
 
         Ok(Response {
             cmd,
-            key_id,
             seq_no,
             ack,
             plaintext,
         })
     }
 
-    fn send_hello(&self) -> Result<(), SendError> {
+    fn send_hello(&mut self) -> Result<(), SendError> {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         let millis = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
@@ -263,46 +267,182 @@ impl Broker {
         let mut buf = core::fmt::NumBuffer::new();
         let millis = millis.format_into(&mut buf);
 
-        let size = millis.len();
-        let (buf, rest) = self.encode_command(PacketType::Hello, millis.as_bytes())?;
+        self.send(PacketType::Hello, millis.as_bytes())
+    }
 
-        let sent = self.socket.send(&buf)?;
-        if sent < buf.len() {
-            return Err(SendError::SlicedPacket(sent, buf.len()));
-        }
-
-        if !rest.is_empty() {
-            return Err(SendError::SlicedPacket(size - rest.len(), size));
-        }
+    fn send_ack(&self) -> Result<(), aead::Error> {
+        let (msg, []) = self.serialize(PacketType::Ack, &[]) else {
+            unreachable!("ack packet too big to fit in MTU?");
+        };
+        let buf = self.encode_command(self.send.count(), msg)?;
+        self.send_packet(&buf);
 
         Ok(())
     }
 
-    fn recv_hello(&mut self) -> Result<UdpBuffer, RecvError> {
+    fn send_packet(&self, buf: &[u8]) {
+        let _sent = self.socket.send(buf);
+    }
+
+    fn recv_packet(&mut self) -> Result<UdpBuffer, RecvError> {
         let mut buf = [0u8; MAX_MTU_SIZE];
         let size = self.socket.recv(&mut buf)?;
 
-        if size < MIN_PACKET_LEN {
-            return Err(RecvError::Underflow(size));
-        }
-
-        let buf = UdpBuffer::from_iter(buf[..size].iter().copied());
+        let buf = buf[..size]
+            .try_into()
+            .expect("UdpBuffer to be large enough");
 
         Ok(buf)
     }
 
-    fn handshake(&mut self) -> Result<(), HandshakeError> {
-        self.send_hello()?;
-        let mut packet = self.recv_hello()?;
-        let _response = self.parse_response(&mut packet)?;
-        debug_println!("received: {:?}", _response);
+    fn perform_io(&mut self) -> Result<(), aead::Error> {
+        if self.send.is_stale(RETRY_TIMEOUT) {
+            //debug_println!("no ackno, retrying... {}", self.send.r.0);
+            for (seq, entry) in self.send.queue() {
+                let buf = self.encode_command(seq, entry)?;
+                self.send_packet(&buf);
+            }
+            self.send.mark_sent();
+        }
+
+        if let Ok(mut buf) = self.recv_packet()
+            && let Ok(response) = self.parse_response(&mut buf)
+        {
+            if response.ack > self.send.count() {
+                debug_println!("got a future ack {}?", response.ack);
+            }
+
+            if response.cmd != PacketType::Hello && response.seq_no > self.recv.count() {
+                debug_println!("dropped packets detected");
+            } else if response.cmd == PacketType::Ack {
+                // nothing
+            } else if response.seq_no < self.recv.count() {
+                //debug_println!("re-ack {:?} {}/{}", std::time::Instant::now(), response.seq_no, self.recv.count());
+                self.send_ack()?;
+            } else if self
+                .recv
+                .push((
+                    response.cmd,
+                    response.plaintext[..]
+                        .try_into()
+                        .expect("UdpBuffer to be large enough"),
+                ))
+                .is_ok()
+            {
+                self.send.mark_clear(response.ack);
+                self.send_ack()?;
+            }
+        }
 
         Ok(())
     }
+
+    fn send(&mut self, cmd: PacketType, mut data: &[u8]) -> Result<(), SendError> {
+        if !self.send.is_empty() {
+            return Err(SendError::Busy);
+        }
+
+        if data.len() > (self.MTU - MIN_PACKET_LEN) * RINGBUF_ENTRIES {
+            return Err(SendError::TooLarge);
+        }
+
+        loop {
+            let (msg, rest) = self.serialize(cmd, data);
+            self.send.push(msg).expect("message to fit in buffer");
+            if rest.is_empty() {
+                break;
+            } else {
+                data = rest;
+            }
+        }
+
+        for (seq, msg) in self.send.queue() {
+            let buf = self.encode_command(seq, msg)?;
+            self.send_packet(&buf);
+        }
+
+        Ok(())
+    }
+
+    fn read(
+        &mut self,
+    ) -> Result<(PacketType, arrayvec::ArrayVec<u8, MAX_MESSAGE_SIZE>), RecvError> {
+        let mut buffer = arrayvec::ArrayVec::new();
+
+        let process = || {
+            for (seq, (cmd, msg)) in self.recv.queue() {
+                buffer.try_extend_from_slice(&msg)?;
+                if cmd != PacketType::Partial {
+                    return Ok((seq, (cmd, buffer)));
+                }
+            }
+            Err(RecvError::Incomplete)
+        };
+
+        let (seq_no, result) = process()?;
+        self.recv.mark_clear(seq_no);
+        Ok(result)
+    }
+}
+
+fn parse_hello(msg: &str) -> Option<(u32, u32)> {
+    let mut parts = msg.split(|b| b == ' ');
+
+    let a = parts.next()?.parse().ok()?;
+    let b = parts.next()?.parse().ok()?;
+
+    Some((a, b))
 }
 
 fn main() {
+    use std::collections::VecDeque;
     let mut broker = Broker::open("localhost:14400").unwrap();
 
-    broker.handshake().unwrap();
+    broker.send_hello().unwrap();
+    let mut actions = VecDeque::from([
+        |x: &mut Broker| x.send(PacketType::ReadFile, b"msg"),
+        |x: &mut Broker| x.send(PacketType::ReadFile, b"world"),
+        |x: &mut Broker| x.send(PacketType::Remove, b"newmsg"),
+        |x: &mut Broker| x.send(PacketType::WriteFile, b"newmsg\x00I have a plan!"),
+        |x: &mut Broker| x.send(PacketType::ReadFile, b"newmsg"),
+        |x: &mut Broker| x.send(PacketType::ReadDir, b"tmp/"),
+    ]);
+    let mut greeted = false;
+    loop {
+        match broker.read() {
+            Ok((cmd, data)) => {
+                let data = std::str::from_utf8(&data).unwrap();
+                #[allow(clippy::single_match)]
+                match cmd {
+                    PacketType::Hello => {
+                        println!("Hello: {data}");
+                        greeted = true;
+                        let (s, r) = parse_hello(&data).unwrap();
+                        broker.send = ringbuf::Buffer::new(s);
+                        broker.recv = ringbuf::Buffer::new(r + 1);
+                    }
+                    PacketType::ReadDir => {
+                        println!("ReadDir:");
+                        for mut set in data.lines().map(|line| line.split('\0')) {
+                            let file = set.next().unwrap();
+                            let time = set.next().unwrap();
+                            let size = set.next().unwrap();
+                            println!("\t{file}\t{time}\t{size}");
+                        }
+                    }
+                    _ => println!("{cmd:?}: {}", data),
+                }
+            }
+            Err(RecvError::Incomplete) => {
+                broker.perform_io().unwrap();
+                if greeted
+                    && let Some(action) = actions.front()
+                    && action(&mut broker).is_ok()
+                {
+                    actions.pop_front();
+                }
+            }
+            _ => panic!(),
+        }
+    }
 }
