@@ -13,10 +13,38 @@ macro_rules! debug_println {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct HelloMsg<'a>(&'a [u8]);
+
+#[derive(Debug, Copy, Clone)]
+#[repr(u16)]
+pub enum OutMessage<'a> {
+    Bye,
+    Error(&'a str),
+    Hello(HelloMsg<'a>),
+    ReadFile(&'a [u8]),
+    WriteFile(&'a [u8], &'a [u8]),
+    Remove(&'a [u8]),
+    ReadDir(&'a [u8]),
+}
+
+#[derive(Debug, Clone)]
+#[repr(u16)]
+pub enum InMessage {
+    Skip,
+    Error(MsgBuffer),
+    Bye,
+    Hello(u32, u32),
+    ReadFile(MsgBuffer),
+    WriteFile,
+    Remove,
+    ReadDir(MsgBuffer),
+}
+
 #[allow(unused)]
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum PacketType {
+enum PacketType {
     Ack,
     Partial,
     #[default]
@@ -125,6 +153,7 @@ const MAX_MESSAGE_SIZE: usize = RINGBUF_ENTRIES * (MAX_MTU_SIZE - MIN_PACKET_LEN
 
 type SecretKey = aead::Key<chacha20poly1305::XChaCha20Poly1305>;
 type UdpBuffer = arrayvec::ArrayVec<u8, MAX_MTU_SIZE>;
+pub type MsgBuffer = arrayvec::ArrayVec<u8, MAX_MESSAGE_SIZE>;
 
 #[allow(non_snake_case)]
 pub struct Broker {
@@ -267,7 +296,7 @@ impl Broker {
         let mut buf = core::fmt::NumBuffer::new();
         let millis = millis.format_into(&mut buf);
 
-        self.send(PacketType::Hello, millis.as_bytes())
+        self.send(OutMessage::Hello(HelloMsg(millis.as_bytes())))
     }
 
     fn send_ack(&self) -> Result<(), aead::Error> {
@@ -337,7 +366,10 @@ impl Broker {
         Ok(())
     }
 
-    pub fn send(&mut self, cmd: PacketType, mut data: &[u8]) -> Result<(), SendError> {
+    pub fn send(&mut self, cmd: OutMessage) -> Result<(), SendError> {
+        let (cmd, data) = to_raw_packet(cmd).ok_or(SendError::TooLarge)?;
+        let mut data = data.as_ref();
+
         if !self.send.is_empty() {
             return Err(SendError::Busy);
         }
@@ -364,10 +396,8 @@ impl Broker {
         Ok(())
     }
 
-    pub fn read(
-        &mut self,
-    ) -> Result<(PacketType, arrayvec::ArrayVec<u8, MAX_MESSAGE_SIZE>), RecvError> {
-        let mut buffer = arrayvec::ArrayVec::new();
+    pub fn read(&mut self) -> Result<InMessage, RecvError> {
+        let mut buffer = MsgBuffer::new();
 
         let process = || {
             for (seq, (cmd, msg)) in self.recv.queue() {
@@ -379,13 +409,78 @@ impl Broker {
             Err(RecvError::Incomplete)
         };
 
-        let (seq_no, result) = process()?;
+        let (seq_no, (cmd, data)) = process()?;
         self.recv.mark_clear(seq_no);
-        Ok(result)
+
+        Ok(from_raw_packet(cmd, data))
     }
 
     pub fn reinit(&mut self, send_pos: u32, recv_pos: u32) {
         self.send = ringbuf::Buffer::new(send_pos);
         self.recv = ringbuf::Buffer::new(recv_pos);
     }
+}
+
+fn parse_hello(msg: &[u8]) -> Option<(u32, u32)> {
+    let msg = std::str::from_utf8(msg).ok()?;
+    let mut parts = msg.split(' ');
+
+    let a = parts.next()?.parse().ok()?;
+    let b = parts.next()?.parse().ok()?;
+
+    Some((a, b))
+}
+
+fn from_raw_packet(cmd: PacketType, data: MsgBuffer) -> InMessage {
+    match cmd {
+        PacketType::Partial | PacketType::Ack => InMessage::Skip,
+        PacketType::Error => InMessage::Error(data),
+        PacketType::Bye => InMessage::Bye,
+        PacketType::Hello => {
+            if let Some((x, y)) = parse_hello(&data) {
+                InMessage::Hello(x, y)
+            } else {
+                InMessage::Skip
+            }
+        }
+        PacketType::ReadFile => InMessage::ReadFile(data),
+        PacketType::WriteFile => InMessage::WriteFile,
+        PacketType::Remove => InMessage::Remove,
+        PacketType::ReadDir => InMessage::ReadDir(data),
+    }
+}
+
+#[allow(clippy::large_enum_variant)]
+enum CowBuf<'a> {
+    Borrowed(&'a [u8]),
+    Owned(MsgBuffer),
+}
+
+impl<'a> CowBuf<'a> {
+    fn as_ref(&'a self) -> &'a [u8] {
+        match self {
+            Self::Borrowed(x) => x,
+            Self::Owned(x) => x,
+        }
+    }
+}
+
+fn to_raw_packet<'a>(cmd: OutMessage<'a>) -> Option<(PacketType, CowBuf<'a>)> {
+    let result = match cmd {
+        OutMessage::Bye => (PacketType::Bye, CowBuf::Borrowed(&[][..])),
+        OutMessage::Hello(HelloMsg(data)) => (PacketType::Hello, CowBuf::Borrowed(data)),
+        OutMessage::ReadFile(desc) => (PacketType::ReadFile, CowBuf::Borrowed(desc)),
+        OutMessage::WriteFile(desc, data) => {
+            let mut buf = MsgBuffer::new();
+            buf.try_extend_from_slice(desc).ok()?;
+            buf.try_push(0).ok()?;
+            buf.try_extend_from_slice(data).ok()?;
+            (PacketType::WriteFile, CowBuf::Owned(buf))
+        }
+        OutMessage::Remove(desc) => (PacketType::Remove, CowBuf::Borrowed(desc)),
+        OutMessage::ReadDir(desc) => (PacketType::ReadDir, CowBuf::Borrowed(desc)),
+        OutMessage::Error(text) => (PacketType::ReadDir, CowBuf::Borrowed(text.as_bytes())),
+    };
+
+    Some(result)
 }
