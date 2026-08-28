@@ -128,11 +128,11 @@ mod tests {
             ringbuf.push(i).unwrap();
         }
         assert!(ringbuf.push(11).is_err());
-        ringbuf.mark_clear(1);
+        ringbuf.mark_clear(0);
         assert!(ringbuf.push(11).is_ok());
         assert!(ringbuf.is_stale(std::time::Duration::from_millis(0)));
         assert!(!ringbuf.is_stale(std::time::Duration::from_millis(5000)));
         let buf = ringbuf.queue().map(|(_, x)| x).collect::<Vec<_>>();
-        assert_eq!(&[2u8, 3, 4, 5, 6, 7, 8, 9, 10, 11][..], &buf);
+        assert_eq!(&buf, &[2u8, 3, 4, 5, 6, 7, 8, 9, 10, 11][..]);
     }
 }
