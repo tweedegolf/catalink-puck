@@ -134,10 +134,10 @@ struct Response<'a> {
 const TMP_KEYID: u32 = 54941102;
 
 /* timeout for reading from a packet */
-const READ_TIMEOUT: Duration = Duration::from_millis(1000);
+const READ_TIMEOUT: Duration = Duration::from_millis(10);
 
 /* timeout for reading from a packet */
-const RETRY_TIMEOUT: Duration = Duration::from_millis(100);
+const RETRY_TIMEOUT: Duration = Duration::from_millis(1);
 
 /* amount of entries in the ringbuf; determines the maximum message size icw. MTU */
 const RINGBUF_ENTRIES: usize = 4; // 1 << 4;
@@ -310,10 +310,18 @@ impl Broker {
     }
 
     fn send_packet(&self, buf: &[u8]) {
+        use rand::RngExt;
+        if !rand::rng().random_bool(0.01) {
+            return;
+        }
         let _sent = self.socket.send(buf);
     }
 
     fn recv_packet(&mut self) -> Result<UdpBuffer, RecvError> {
+        use rand::RngExt;
+        if !rand::rng().random_bool(0.01) {
+            return Err(RecvError::Incomplete);
+        }
         let mut buf = [0u8; MAX_MTU_SIZE];
         let size = self.socket.recv(&mut buf)?;
 
