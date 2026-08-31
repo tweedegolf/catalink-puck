@@ -4,8 +4,8 @@ fn main() {
     use std::collections::VecDeque;
     let mut broker = Broker::open("localhost:14400").unwrap();
 
-    broker.send_hello().unwrap();
     let mut actions = VecDeque::from([
+        OutMessage::hello().unwrap(),
         OutMessage::ReadFile(b"msg"),
         OutMessage::ReadFile(b"world"),
         OutMessage::Remove(b"newmsg"),
@@ -23,6 +23,7 @@ fn main() {
                     InMessage::Hello(s, r) => {
                         println!("Hello: {s}  {r}");
                         greeted = true;
+                        actions.pop_front();
                         broker.reinit(s, r + 1);
                     }
                     InMessage::ReadFile(data) => {
@@ -43,13 +44,13 @@ fn main() {
                 }
             }
             Err(RecvError::Incomplete) => {
-                broker.perform_io().unwrap();
-                if greeted
-                    && let Some(action) = actions.front()
+                if let Some(action) = actions.front()
                     && broker.send(*action).is_ok()
+                    && greeted
                 {
                     actions.pop_front();
                 }
+                broker.perform_io().unwrap();
             }
             _ => panic!(),
         }

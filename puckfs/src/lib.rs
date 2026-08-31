@@ -18,15 +18,15 @@ macro_rules! debug_println {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct HelloMsg<'a>(&'a [u8]);
+#[derive(Debug, Copy, Clone)]
+pub struct HelloMsg(u128);
 
 #[derive(Debug, Copy, Clone)]
 #[repr(u16)]
 pub enum OutMessage<'a> {
     Bye,
     Error(&'a str),
-    Hello(HelloMsg<'a>),
+    Hello(HelloMsg),
     ReadFile(&'a [u8]),
     WriteFile(&'a [u8], &'a [u8]),
     Remove(&'a [u8]),
@@ -301,17 +301,6 @@ impl Broker {
         })
     }
 
-    pub fn send_hello(&mut self) -> Result<(), SendError> {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        let millis = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
-
-        let mut buf = core::fmt::NumBuffer::new();
-        let millis = millis.format_into(&mut buf);
-
-        self.send(OutMessage::Hello(HelloMsg(millis.as_bytes())))
-    }
-
     fn send_ack(&self) -> Result<(), aead::Error> {
         let (msg, []) = self.serialize(PacketType::Ack, &[]) else {
             unreachable!("ack packet too big to fit in MTU?");
@@ -434,6 +423,16 @@ impl Broker {
     }
 }
 
+impl OutMessage<'_> {
+    pub fn hello() -> Result<OutMessage<'static>, std::time::SystemTimeError> {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let millis = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+
+        Ok(OutMessage::Hello(HelloMsg(millis)))
+    }
+}
+
 fn parse_hello(msg: &[u8]) -> Option<(u32, u32)> {
     let msg = std::str::from_utf8(msg).ok()?;
     let mut parts = msg.split(' ');
@@ -481,7 +480,12 @@ impl<'a> CowBuf<'a> {
 fn to_raw_packet<'a>(cmd: OutMessage<'a>) -> Option<(PacketType, CowBuf<'a>)> {
     let result = match cmd {
         OutMessage::Bye => (PacketType::Bye, CowBuf::Borrowed(&[][..])),
-        OutMessage::Hello(HelloMsg(data)) => (PacketType::Hello, CowBuf::Borrowed(data)),
+        OutMessage::Hello(HelloMsg(data)) => (PacketType::Hello, {
+            use std::io::Write;
+            let mut buf = MsgBuffer::new();
+            write!(&mut buf, "{data}").ok()?;
+            CowBuf::Owned(buf)
+        }),
         OutMessage::ReadFile(desc) => (PacketType::ReadFile, CowBuf::Borrowed(desc)),
         OutMessage::WriteFile(desc, data) => {
             let mut buf = MsgBuffer::new();
