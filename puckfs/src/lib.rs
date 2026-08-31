@@ -4,6 +4,11 @@ use thiserror::Error;
 
 mod ringbuf;
 
+#[cfg(not(target_os = "xous"))]
+use rand::TryRng;
+#[cfg(target_os = "xous")]
+use rand_core::RngCore;
+
 macro_rules! debug_println {
     ($($x: expr),*) => {
         #[cfg(debug_assertions)]
@@ -219,12 +224,16 @@ impl Broker {
             XChaCha20Poly1305, XNonce,
             aead::{AeadInOut, KeyInit},
         };
-        use rand::{TryRng, rngs::SysRng};
+
+        #[cfg(target_os = "xous")]
+        let mut rng = trng::Trng::new(&xous_names::XousNames::new().expect("to get a xous handle"))
+            .expect("to have a rng");
+        #[cfg(not(target_os = "xous"))]
+        let mut rng = rand::rngs::SysRng;
 
         let cipher = XChaCha20Poly1305::new(&self.key);
         let mut nonce = XNonce::default();
-        SysRng
-            .try_fill_bytes(&mut nonce)
+        rng.try_fill_bytes(&mut nonce)
             .expect("to have ample random bytes");
 
         cipher.encrypt_in_place(&nonce, &ad, &mut plaintext)?;
