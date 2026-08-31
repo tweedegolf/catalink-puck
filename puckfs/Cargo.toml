@@ -8,5 +8,6 @@ rust-version.workspace = true
 aead = "0.6.1"
 arrayvec = { version = "0.7.8", default-features = false, features = ["std", "zeroize"] }
 base64ct = { version = "1.8.3", default-features = false }
-chacha20poly1305 = { version = "0.11.0", default-features = false, features = ["arrayvec", "getrandom", "rand_core", "zeroize"] }
+chacha20poly1305 = { version = "0.11.0", default-features = false, features = ["arrayvec", "rand_core", "zeroize"] }
+rand = { version = "0.10.2", default-features = false, features = ["sys_rng"] }
 thiserror = { version = "2.0.20", default-features = false, features = ["std"] }

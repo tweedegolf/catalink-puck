@@ -100,7 +100,6 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453"
 dependencies = [
- "getrandom",
  "hybrid-array",
  "rand_core",
 ]
@@ -177,6 +176,7 @@ dependencies = [
  "arrayvec",
  "base64ct",
  "chacha20poly1305",
+ "rand",
  "thiserror",
 ]
 
@@ -194,6 +194,16 @@ name = "r-efi"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
+
+[[package]]
+name = "rand"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
+dependencies = [
+ "getrandom",
+ "rand_core",
+]
 
 [[package]]
 name = "rand_core"

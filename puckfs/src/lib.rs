@@ -217,11 +217,15 @@ impl Broker {
 
         use chacha20poly1305::{
             XChaCha20Poly1305, XNonce,
-            aead::{AeadInOut, Generate, KeyInit},
+            aead::{AeadInOut, KeyInit},
         };
+        use rand::{TryRng, rngs::SysRng};
 
         let cipher = XChaCha20Poly1305::new(&self.key);
-        let nonce = XNonce::generate();
+        let mut nonce = XNonce::default();
+        SysRng
+            .try_fill_bytes(&mut nonce)
+            .expect("to have ample random bytes");
 
         cipher.encrypt_in_place(&nonce, &ad, &mut plaintext)?;
         let ciphertext = plaintext;
