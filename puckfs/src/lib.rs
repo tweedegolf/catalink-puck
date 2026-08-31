@@ -43,7 +43,17 @@ pub enum InMessage {
     ReadFile(MsgBuffer),
     WriteFile,
     Remove,
-    ReadDir(MsgBuffer),
+    ReadDir(DirView),
+}
+
+#[derive(Debug, Clone)]
+pub struct DirView(MsgBuffer);
+
+#[derive(Debug, Clone, Copy)]
+pub struct DirEntry<'a> {
+    pub file_name: &'a [u8],
+    pub time: u128,
+    pub size: u128,
 }
 
 #[allow(unused)]
@@ -433,6 +443,40 @@ impl OutMessage<'_> {
     }
 }
 
+impl DirView {
+    pub fn iter(&self) -> impl Iterator<Item = DirEntry<'_>> {
+        self.0
+            .split(|&x| x == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| {
+                let mut components = line.split(|&x| x == b'\0');
+                let Some(file_name) = components.next() else {
+                    return DirEntry {
+                        file_name: line,
+                        time: 0,
+                        size: 0,
+                    };
+                };
+                let size = components
+                    .next()
+                    .and_then(|x| std::str::from_utf8(x).ok())
+                    .and_then(|x| x.parse().ok())
+                    .unwrap_or_default();
+                let time = components
+                    .next()
+                    .and_then(|x| std::str::from_utf8(x).ok())
+                    .and_then(|x| x.parse().ok())
+                    .unwrap_or_default();
+
+                DirEntry {
+                    file_name,
+                    time,
+                    size,
+                }
+            })
+    }
+}
+
 fn parse_hello(msg: &[u8]) -> Option<(u32, u32)> {
     let msg = std::str::from_utf8(msg).ok()?;
     let mut parts = msg.split(' ');
@@ -458,7 +502,7 @@ fn from_raw_packet(cmd: PacketType, data: MsgBuffer) -> InMessage {
         PacketType::ReadFile => InMessage::ReadFile(data),
         PacketType::WriteFile => InMessage::WriteFile,
         PacketType::Remove => InMessage::Remove,
-        PacketType::ReadDir => InMessage::ReadDir(data),
+        PacketType::ReadDir => InMessage::ReadDir(DirView(data)),
     }
 }
 

@@ -1,4 +1,4 @@
-use puckfs::{Broker, InMessage, OutMessage, RecvError};
+use puckfs::{Broker, DirEntry, InMessage, OutMessage, RecvError};
 
 fn main() {
     use std::collections::VecDeque;
@@ -31,13 +31,15 @@ fn main() {
                         println!("ReadFile:\n{data}");
                     }
                     InMessage::ReadDir(data) => {
-                        let data = std::str::from_utf8(&data).unwrap();
                         println!("ReadDir:");
-                        for mut set in data.lines().map(|line| line.split('\0')) {
-                            let file = set.next().unwrap();
-                            let time = set.next().unwrap();
-                            let size = set.next().unwrap();
-                            println!("\t{file}\t{time}\t{size}");
+                        for DirEntry {
+                            file_name,
+                            time,
+                            size,
+                        } in data.iter()
+                        {
+                            let file_name = std::str::from_utf8(file_name).unwrap();
+                            println!("\t{file_name}\t{time}\t{size}");
                         }
                     }
                     _ => println!("{msg:?}"),
