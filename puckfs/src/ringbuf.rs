@@ -103,6 +103,12 @@ impl<const N: usize, T> Buffer<T, N> {
 
         age > timeout
     }
+
+    pub fn reposition(&mut self, count: u32) {
+        let diff = count.wrapping_sub(self.w.0);
+        self.w.0 = self.w.0.wrapping_add(diff);
+        self.r.0 = self.r.0.wrapping_add(diff);
+    }
 }
 
 impl<const N: usize, T: Clone> Buffer<T, N> {

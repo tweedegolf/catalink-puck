@@ -24,7 +24,7 @@ fn main() {
                         println!("Hello: {s}  {r}");
                         greeted = true;
                         actions.pop_front();
-                        broker.reinit(s, r + 1);
+                        broker.reposition(s, r + 1);
                     }
                     InMessage::ReadFile(data) => {
                         let data = std::str::from_utf8(&data).unwrap();

@@ -427,9 +427,9 @@ impl Broker {
         Ok(from_raw_packet(cmd, data))
     }
 
-    pub fn reinit(&mut self, send_pos: u32, recv_pos: u32) {
-        self.send = ringbuf::Buffer::new(send_pos);
-        self.recv = ringbuf::Buffer::new(recv_pos);
+    pub fn reposition(&mut self, send_pos: u32, recv_pos: u32) {
+        self.send.reposition(send_pos);
+        self.recv.reposition(recv_pos);
     }
 }
 
