@@ -1,0 +1,14 @@
+[package]
+name = "puckmsg"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[dependencies]
+arrayvec = "0.7.8"
+base64ct = { version = "1.8.3", features = ["alloc", "std"] }
+puckfs = { path = "../puckfs" }
+zeroize = { version = "1.9.0", features = ["zeroize_derive"] }
+aead = "0.6.1"
+chacha20poly1305 = "0.11.0"
+rand = "0.10.2"
