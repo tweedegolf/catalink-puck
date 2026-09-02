@@ -1,9 +1,4 @@
-#![allow(unused)]
-use puckfs::{Broker, DirEntry, DirView, InMessage, MsgBuffer, OutMessage, RecvError};
-
-use puckmsg::{envelope, validate};
-
-use std::assert_matches;
+use puckfs::{Broker, DirView, InMessage, OutMessage, RecvError};
 
 fn block_on(broker: &mut Broker) -> InMessage {
     loop {
@@ -64,17 +59,15 @@ fn post(broker: &mut Broker) {
 }
 
 fn get(broker: &mut Broker) {
-    broker
-        .send(OutMessage::ReadDir("gopuck/".as_bytes()))
-        .unwrap();
-    expect! { broker.recv(InMessage::ReadDir(dir)) };
-    for entry in dir.iter() {
+    for entry in dir(broker, "gopuck/").iter() {
         //FIXME: we should ideally have a "Path" type
         let name = String::from_utf8_lossy(entry.file_name);
         println!("[{name}]");
-        broker.send(OutMessage::ReadFile(format!("gopuck/{name}").as_bytes()));
+        broker
+            .send(OutMessage::ReadFile(format!("gopuck/{name}").as_bytes()))
+            .unwrap();
         expect! { broker.recv(InMessage::ReadFile(contents)) };
-        let (sender, cc, msg) = validate(&contents).unwrap();
+        let (sender, cc, msg) = puckmsg::validate(&contents).unwrap();
         println!("{sender:?}");
         println!("{cc:?}");
         println!("{}", String::from_utf8_lossy(&msg));
