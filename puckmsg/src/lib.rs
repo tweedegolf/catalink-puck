@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 #[derive(Debug, Copy, Clone, zeroize::Zeroize, Eq, PartialEq)]
 pub struct ID(pub u32);
 
@@ -222,7 +220,7 @@ where
     ciphertexts.collect()
 }
 
-pub fn validate(blob: &[u8]) -> Result<(ID, Vec<ID>, Vec<u8>), ValidateError> {
+pub fn validate(blob: &[u8]) -> Result<(String, Vec<String>, Vec<u8>), ValidateError> {
     let (rcpt_key_id, blob) = blob
         .split_first_chunk::<4>()
         .ok_or(ValidateError::IncompleteData)?;
@@ -239,10 +237,9 @@ pub fn validate(blob: &[u8]) -> Result<(ID, Vec<ID>, Vec<u8>), ValidateError> {
     };
 
     use chacha20poly1305::{
-        KeyInit, XChaCha20Poly1305, XNonce,
+        KeyInit, XChaCha20Poly1305,
         aead::{Aead, Payload},
     };
-    use rand::TryRng;
 
     let cipher = XChaCha20Poly1305::new(
         (&*origin.their.secret)
@@ -285,6 +282,9 @@ pub fn validate(blob: &[u8]) -> Result<(ID, Vec<ID>, Vec<u8>), ValidateError> {
         });
     }
 
+    //TODO: we can simply plug the correct value in if we stop using HashMap
+    let sender = reverse_lookup(true_origin).expect("true_origin to be present");
+
     let num = u16::from_be_bytes(*num);
     if num > 100 {
         return Err(ValidateError::MalformedAuthData);
@@ -296,9 +296,22 @@ pub fn validate(blob: &[u8]) -> Result<(ID, Vec<ID>, Vec<u8>), ValidateError> {
         (cc, plaintext) = plaintext
             .split_first_chunk()
             .ok_or(ValidateError::MalformedAuthData)?;
-        cc_list.push(ID(u32::from_be_bytes(*cc)));
+        let cc = u32::from_be_bytes(*cc);
+
+        let nick = reverse_lookup(ID(cc))
+            .map(ToOwned::to_owned)
+            .unwrap_or(format!("unknown-{cc}"));
+
+        cc_list.push(nick);
     }
 
     //TODO: this can be improved
-    Ok((true_origin, cc_list, plaintext.to_vec()))
+    Ok((sender.to_owned(), cc_list, plaintext.to_vec()))
+}
+
+fn reverse_lookup(id: ID) -> Option<&'static str> {
+    PRINCIPALS
+        .iter()
+        .find(|(_, p)| p.id == id)
+        .map(|(nick, _)| *nick)
 }
