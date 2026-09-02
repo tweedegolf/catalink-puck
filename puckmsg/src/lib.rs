@@ -34,7 +34,7 @@ static PRINCIPALS: LazyLock<HashMap<&str, Principal>> = LazyLock::new(|| {
         (
             "me",
             Principal {
-                id: ID(1412637488),
+                id: ID(1446134797),
                 //TODO: this would be an excellent place to store the broker-key
                 our: dummy(),
                 their: dummy(),
@@ -43,7 +43,7 @@ static PRINCIPALS: LazyLock<HashMap<&str, Principal>> = LazyLock::new(|| {
         (
             "gopuck",
             Principal {
-                id: ID(1446134797),
+                id: ID(1412638488),
                 their: Key {
                     id: KeyID(1667057689),
                     secret: Base64::decode_vec("Ux7sv5J5zOqA4TSdbkFvqX11fl4FAhLhjmfTQ9pN3q0=")
@@ -118,6 +118,7 @@ pub enum EnvelopeError {
 pub enum ValidateError {
     IncompleteData,
     MalformedAuthData,
+    SpoofAttempt { actual: ID, pretended: ID },
     Crypto(aead::Error),
     KeyError(KeyID),
 }
@@ -230,11 +231,11 @@ pub fn validate(blob: &[u8]) -> Result<(ID, Vec<ID>, Vec<u8>), ValidateError> {
         .split_first_chunk()
         .ok_or(ValidateError::IncompleteData)?;
 
-    let rcpt_key_id = KeyID(u32::from_be_bytes(*rcpt_key_id));
+    let origin_key_id = KeyID(u32::from_be_bytes(*rcpt_key_id));
     let nonce = (*nonce).into();
 
-    let Some(rcpt) = PRINCIPALS.values().find(|x| x.their.id == rcpt_key_id) else {
-        return Err(ValidateError::KeyError(rcpt_key_id));
+    let Some(origin) = PRINCIPALS.values().find(|x| x.their.id == origin_key_id) else {
+        return Err(ValidateError::KeyError(origin_key_id));
     };
 
     use chacha20poly1305::{
@@ -244,12 +245,12 @@ pub fn validate(blob: &[u8]) -> Result<(ID, Vec<ID>, Vec<u8>), ValidateError> {
     use rand::TryRng;
 
     let cipher = XChaCha20Poly1305::new(
-        (&*rcpt.their.secret)
+        (&*origin.their.secret)
             .try_into()
-            .map_err(|_| ValidateError::KeyError(rcpt.their.id))?,
+            .map_err(|_| ValidateError::KeyError(origin.their.id))?,
     );
 
-    let aad = &rcpt.their.id.0.to_be_bytes();
+    let aad = &origin.their.id.0.to_be_bytes();
     let plaintext = cipher
         .decrypt(&nonce, Payload { msg, aad })
         .map_err(ValidateError::Crypto)?;
@@ -274,11 +275,21 @@ pub fn validate(blob: &[u8]) -> Result<(ID, Vec<ID>, Vec<u8>), ValidateError> {
     let _version: [u8; 4] = *version;
     let _msgtype: Option<MsgType> = (*msgtype).try_into().ok();
     let _timestamp = u64::from_be_bytes(*timestamp);
-    let sender = u32::from_be_bytes(*sender);
+    let sender = ID(u32::from_be_bytes(*sender));
+
+    let true_origin = origin.id;
+    if sender != true_origin {
+        return Err(ValidateError::SpoofAttempt {
+            actual: true_origin,
+            pretended: sender,
+        });
+    }
+
     let num = u16::from_be_bytes(*num);
     if num > 100 {
         return Err(ValidateError::MalformedAuthData);
     }
+
     let mut cc_list = Vec::new();
     for _ in 0..num {
         let cc;
@@ -289,5 +300,5 @@ pub fn validate(blob: &[u8]) -> Result<(ID, Vec<ID>, Vec<u8>), ValidateError> {
     }
 
     //TODO: this can be improved
-    Ok((ID(sender), cc_list, plaintext.to_vec()))
+    Ok((true_origin, cc_list, plaintext.to_vec()))
 }
