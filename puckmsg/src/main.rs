@@ -43,7 +43,7 @@ mod blocking {
         let rcpts = ["gopuck"];
         for (who, data) in rcpts
             .iter()
-            .zip(puckmsg::envelope("me", rcpts, "Hello world!").unwrap())
+            .zip(puckmsg::envelope("eric", rcpts, "Hello world!").unwrap())
         {
             broker
                 .send(OutMessage::WriteFile(
@@ -92,7 +92,7 @@ mod asynchronous {
 
         handshake(&mut broker).await.unwrap();
 
-        post(&mut broker, "me", &["gopuck"], "Hello World!")
+        post(&mut broker, "eric", &["gopuck"], "Hello Async!")
             .await
             .unwrap();
 
