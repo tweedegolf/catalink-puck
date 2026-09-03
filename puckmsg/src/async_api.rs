@@ -6,6 +6,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 struct Listen<'a>(&'a mut Broker);
+struct Sender<'a>(&'a mut Broker, OutMessage<'a>);
 
 impl Future for Listen<'_> {
     type Output = Result<InMessage, RecvError>;
@@ -28,12 +29,36 @@ impl Future for Listen<'_> {
     }
 }
 
+impl Future for Sender<'_> {
+    type Output = Result<(), SendError>;
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let Self(broker, msg) = self.get_mut();
+
+        let value = match broker.send(*msg) {
+            Err(SendError::Busy) => {
+                if let Err(err) = broker.perform_io() {
+                    Err(SendError::Crypto(err))
+                } else {
+                    cx.waker().wake_by_ref();
+                    return Poll::Pending;
+                }
+            }
+            result => result,
+        };
+
+        Poll::Ready(value)
+    }
+}
+
 macro_rules! expect {
     (let $what: pat = $name:ident . read() $($q: tt)?) => {
         let result = Listen($name).await $($q)?;
         let $what = result else {
             return Err(CmdError::InvalidResponse)
         };
+    };
+    ($name:ident . send($what: expr) $($q: tt)?) => {
+        Sender($name, $what).await $($q)?;
     };
 }
 
@@ -71,14 +96,14 @@ impl From<ValidateError> for CmdError {
 }
 
 pub async fn handshake(broker: &mut Broker) -> Result<(), CmdError> {
-    broker.send(OutMessage::hello().map_err(SendError::TimeError)?)?;
+    expect! { broker.send(OutMessage::hello().map_err(SendError::TimeError)?)? };
     expect! { let InMessage::Hello(s, r) = broker.read()? };
     broker.reposition(s, r + 1);
     Ok(())
 }
 
 pub async fn dir(broker: &mut Broker, dir: &str) -> Result<DirView, CmdError> {
-    broker.send(OutMessage::ReadDir(dir.as_bytes()))?;
+    expect! { broker.send(OutMessage::ReadDir(dir.as_bytes()))? };
     expect! { let InMessage::ReadDir(entries) = broker.read()? };
 
     Ok(entries)
@@ -91,10 +116,12 @@ pub async fn post(
     contents: &str,
 ) -> Result<(), CmdError> {
     for (who, data) in to.iter().zip(super::envelope(from, to, contents)?) {
-        broker.send(OutMessage::WriteFile(
-            format!("{who}/test").as_bytes(),
-            &data,
-        ))?;
+        expect! {
+            broker.send(OutMessage::WriteFile(
+                format!("{who}/test").as_bytes(),
+                &data,
+            ))?
+        };
 
         expect! { let InMessage::WriteFile = broker.read()? };
     }
@@ -115,7 +142,7 @@ pub async fn get(
     for entry in entries.iter() {
         //FIXME: we should ideally have a "Path" type
         let name = String::from_utf8_lossy(entry.file_name);
-        broker.send(OutMessage::ReadFile(format!("{inbox}{name}").as_bytes()))?;
+        expect! { broker.send(OutMessage::ReadFile(format!("{inbox}{name}").as_bytes()))? };
         expect! { let InMessage::ReadFile(contents) = broker.read()? };
 
         results.push(super::validate(&contents));
