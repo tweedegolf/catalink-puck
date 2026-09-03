@@ -1,3 +1,5 @@
+pub mod async_api;
+
 #[derive(Debug, Copy, Clone, zeroize::Zeroize, Eq, PartialEq)]
 pub struct ID(pub u32);
 
