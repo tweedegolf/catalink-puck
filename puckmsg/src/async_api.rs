@@ -121,10 +121,16 @@ pub async fn post(
     to: &[&str],
     contents: &str,
 ) -> Result<(), CmdError> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
     for (who, data) in to.iter().zip(super::envelope(from, to, contents)?) {
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(CmdError::Time)?
+            .as_nanos();
         expect! {
             broker.send(OutMessage::WriteFile(
-                format!("{who}/test").as_bytes(),
+                format!("{who}/{ts}").as_bytes(),
                 &data,
             ))?
         };
