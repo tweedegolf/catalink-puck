@@ -5,7 +5,6 @@ pub mod widgets;
 use num_traits::*;
 use ux_api::minigfx::*;
 
-use gam::bitmap::Bitmap;
 use gam::{Gam, Gid, Point};
 use xous_ipc::Buffer;
 
@@ -93,9 +92,19 @@ impl Ui {
             })
             .expect("Could not register GAM UX")
             .unwrap();
-        let content = gam.request_content_canvas(gam_token).expect("Could not get content canvas");
-        let screen_size = gam.get_canvas_bounds(content).expect("Could not get canvas dimensions");
-        Ui { screen_size, gam, content, sid, events: Vec::new() }
+        let content = gam
+            .request_content_canvas(gam_token)
+            .expect("Could not get content canvas");
+        let screen_size = gam
+            .get_canvas_bounds(content)
+            .expect("Could not get canvas dimensions");
+        Ui {
+            screen_size,
+            gam,
+            content,
+            sid,
+            events: Vec::new(),
+        }
     }
 
     pub fn clear(&self) {
@@ -105,7 +114,11 @@ impl Ui {
                 Rectangle::new_with_style(
                     Point::new(0, 0),
                     self.screen_size,
-                    DrawStyle { fill_color: Some(PixelColor::Light), stroke_color: None, stroke_width: 0 },
+                    DrawStyle {
+                        fill_color: Some(PixelColor::Light),
+                        stroke_color: None,
+                        stroke_width: 0,
+                    },
                 ),
             )
             .expect("can't clear content area");
@@ -139,10 +152,6 @@ impl Ui {
         self.gam.draw_rounded_rectangle(self.content, rr)
     }
 
-    pub fn draw_bitmap(&self, bm: &Bitmap) -> Result<(), xous::Error> {
-        self.gam.draw_bitmap(self.content, bm)
-    }
-
     pub fn draw_circle(&self, circ: Circle) -> Result<(), xous::Error> {
         self.gam.draw_circle(self.content, circ)
     }
@@ -157,18 +166,28 @@ impl Ui {
                     self.redraw().expect("Failed to redraw");
                 }
                 Some(RawUiEvent::Line) => {
-                    let buffer = unsafe { Buffer::from_memory_message(msg.body.memory_message().unwrap()) };
+                    let buffer =
+                        unsafe { Buffer::from_memory_message(msg.body.memory_message().unwrap()) };
                     let s = buffer.as_flat::<String, _>().unwrap().to_string();
-                    screen.handle_event(self, UiEvent::Line(s)).expect("Failed to handle event");
+                    screen
+                        .handle_event(self, UiEvent::Line(s))
+                        .expect("Failed to handle event");
                 }
                 Some(RawUiEvent::Quit) => {
                     log::info!("Quitting application");
                     break;
                 }
                 Some(RawUiEvent::Key) => xous::msg_scalar_unpack!(msg, k1, k2, k3, k4, {
-                    let keys = Keys { keys: [Key::from(k1), Key::from(k2), Key::from(k3), Key::from(k4)] };
-                    screen.handle_event(self, UiEvent::Keys(keys)).expect("Failed to handle key event");
+                    let keys = Keys {
+                        keys: [Key::from(k1), Key::from(k2), Key::from(k3), Key::from(k4)],
+                    };
+                    screen
+                        .handle_event(self, UiEvent::Keys(keys))
+                        .expect("Failed to handle key event");
                 }),
+                Some(RawUiEvent::Focus) => {
+                    screen.redraw(self).expect("Failed to redraw");
+                }
                 _ => {
                     log::error!("Got unknown message");
                 }

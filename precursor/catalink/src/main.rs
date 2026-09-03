@@ -2,6 +2,8 @@
 #![cfg_attr(target_os = "none", no_main)]
 mod ui;
 
+use std::time::Duration;
+
 #[cfg(feature = "tts")]
 use tts_frontend::*;
 
@@ -15,10 +17,16 @@ fn main() -> ! {
     log::info!("CATALINK PID is {}", xous::process::id());
 
     let xns = xous_names::XousNames::new().unwrap();
-    let sid = xns.register_name(SERVER_NAME_CATALINK, None).expect("can't register server");
+    let sid = xns
+        .register_name(SERVER_NAME_CATALINK, None)
+        .expect("can't register server");
 
+    std::thread::sleep(Duration::from_secs(5));
     let mut ui = Ui::new(&xns, sid);
-    ui.run(Box::new(crate::ui::screens::contacts::Contacts::new(ui.screen_size)));
+
+    ui.run(Box::new(crate::ui::screens::contacts::Contacts::new(
+        ui.screen_size,
+    )));
 
     log::info!("Quitting");
     xous::terminate_process(0)
