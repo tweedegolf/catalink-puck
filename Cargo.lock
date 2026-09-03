@@ -396,6 +396,7 @@ dependencies = [
  "puckfs",
  "rand 0.10.2",
  "rand_core 0.6.4",
+ "thiserror",
  "trng",
  "xous-api-names",
  "zeroize",

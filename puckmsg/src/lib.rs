@@ -107,7 +107,7 @@ impl TryFrom<[u8; 4]> for MsgType {
 #[derive(Debug)]
 pub enum EnvelopeError {
     TooManyRecipients(usize),
-    TimeError(std::time::SystemTimeError),
+    Time(std::time::SystemTimeError),
     TooLarge,
     UnknownNick(String),
     Crypto(aead::Error),
@@ -149,7 +149,7 @@ where
 
     let now: u64 = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(EnvelopeError::TimeError)?
+        .map_err(EnvelopeError::Time)?
         .as_secs();
 
     let Some(sender): Option<&Principal> = PRINCIPALS.get(sender) else {

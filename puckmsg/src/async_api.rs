@@ -66,43 +66,30 @@ macro_rules! expect {
     };
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum CmdError {
-    Send(SendError),
-    Recv(RecvError),
+    #[error(transparent)]
+    Send(#[from] SendError),
+    #[error(transparent)]
+    Recv(#[from] RecvError),
+    #[error("invalid response received from broker")]
     InvalidResponse,
+    #[error("problem encoding message: {0:?}")]
     Envelope(EnvelopeError),
-    Validate(ValidateError),
-    Time(std::time::SystemTimeError),
+    #[error(transparent)]
+    Time(#[from] std::time::SystemTimeError),
+    #[error("remote server returned error: {0}")]
     Remote(String),
 }
 
-impl From<SendError> for CmdError {
-    fn from(e: SendError) -> CmdError {
-        CmdError::Send(e)
-    }
-}
-
-impl From<RecvError> for CmdError {
-    fn from(e: RecvError) -> CmdError {
-        CmdError::Recv(e)
-    }
-}
-
 impl From<EnvelopeError> for CmdError {
-    fn from(e: EnvelopeError) -> CmdError {
-        CmdError::Envelope(e)
-    }
-}
-
-impl From<ValidateError> for CmdError {
-    fn from(e: ValidateError) -> CmdError {
-        CmdError::Validate(e)
+    fn from(err: EnvelopeError) -> Self {
+        Self::Envelope(err)
     }
 }
 
 pub async fn handshake(broker: &mut Broker) -> Result<(), CmdError> {
-    expect! { broker.send(OutMessage::hello().map_err(CmdError::Time)?)? };
+    expect! { broker.send(OutMessage::hello()?)? };
     expect! { let InMessage::Hello(s, r) = broker.read()? };
     broker.reposition(s, r + 1);
     Ok(())
@@ -124,10 +111,7 @@ pub async fn post(
     use std::time::{SystemTime, UNIX_EPOCH};
 
     for (who, data) in to.iter().zip(super::envelope(from, to, contents)?) {
-        let ts = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(CmdError::Time)?
-            .as_nanos();
+        let ts = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         expect! {
             broker.send(OutMessage::WriteFile(
                 format!("{who}/{ts}").as_bytes(),
