@@ -17,20 +17,14 @@ mod blocking {
         }
     }
 
-    macro_rules! expect {
-        (let $what: pat = $name:ident . read()) => {
-            let $what = recv($name) else {
-                panic!("expected {}", stringify!($what));
-            };
-        };
-    }
-
     fn handshake(addr: &str) -> Broker {
         let mut new_broker = Broker::open(addr).unwrap();
         let broker = &mut new_broker;
 
         broker.send(OutMessage::hello().unwrap()).unwrap();
-        expect! { let InMessage::Hello(s, r) = broker.read() };
+        let InMessage::Hello(s, r) = recv(broker) else {
+            panic!("unexpected response");
+        };
         broker.reposition(s, r + 1);
 
         new_broker
@@ -38,7 +32,9 @@ mod blocking {
 
     fn dir(broker: &mut Broker, dir: &str) -> DirView {
         broker.send(OutMessage::ReadDir(dir.as_bytes())).unwrap();
-        expect! { let InMessage::ReadDir(entries) = broker.read() };
+        let InMessage::ReadDir(entries) = recv(broker) else {
+            panic!("unexpected response");
+        };
 
         entries
     }
@@ -55,7 +51,9 @@ mod blocking {
                     &data,
                 ))
                 .unwrap();
-            expect! { let InMessage::WriteFile = broker.read() };
+            let InMessage::WriteFile = recv(broker) else {
+                panic!("unexpected response")
+            };
         }
     }
 
@@ -67,7 +65,10 @@ mod blocking {
             broker
                 .send(OutMessage::ReadFile(format!("gopuck/{name}").as_bytes()))
                 .unwrap();
-            expect! { let InMessage::ReadFile(contents) = broker.read() };
+
+            let InMessage::ReadFile(contents) = recv(broker) else {
+                panic!("unexpected response")
+            };
             let (sender, cc, msg) = puckmsg::validate(&contents).unwrap();
             println!("{sender:?}");
             println!("{cc:?}");
