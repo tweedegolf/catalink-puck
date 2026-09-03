@@ -54,7 +54,11 @@ macro_rules! expect {
     (let $what: pat = $name:ident . read() $($q: tt)?) => {
         let result = Listen($name).await $($q)?;
         let $what = result else {
-            return Err(CmdError::InvalidResponse)
+            if let InMessage::Error(e) = result {
+                return Err(CmdError::Remote(String::from_utf8_lossy(&e).to_string()))
+            } else {
+                return Err(CmdError::InvalidResponse)
+            }
         };
     };
     ($name:ident . send($what: expr) $($q: tt)?) => {
@@ -69,6 +73,7 @@ pub enum CmdError {
     InvalidResponse,
     Envelope(EnvelopeError),
     Validate(ValidateError),
+    Remote(String),
 }
 
 impl From<SendError> for CmdError {
@@ -145,8 +150,21 @@ pub async fn get(
         expect! { broker.send(OutMessage::ReadFile(format!("{inbox}{name}").as_bytes()))? };
         expect! { let InMessage::ReadFile(contents) = broker.read()? };
 
-        results.push(super::validate(&contents));
+        let result = super::validate(&contents);
+
+        if result.is_ok() {
+            delete(broker, &format!("{inbox}{name}")).await?;
+        }
+
+        results.push(result);
     }
 
     Ok(results)
+}
+
+pub async fn delete(broker: &mut Broker, path: &str) -> Result<(), CmdError> {
+    expect! { broker.send(OutMessage::Remove(path.as_bytes()))? };
+    expect! { let InMessage::Remove = broker.read()? };
+
+    Ok(())
 }
