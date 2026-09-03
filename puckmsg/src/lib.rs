@@ -191,7 +191,11 @@ where
             KeyInit, XChaCha20Poly1305, XNonce,
             aead::{Aead, Payload},
         };
+
+        #[cfg(not(target_os = "xous"))]
         use rand::TryRng;
+        #[cfg(target_os = "xous")]
+        use rand_core::RngCore;
 
         #[cfg(target_os = "xous")]
         let mut rng = trng::Trng::new(&xous_names::XousNames::new().expect("to get a xous handle"))
