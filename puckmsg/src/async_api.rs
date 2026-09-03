@@ -73,6 +73,7 @@ pub enum CmdError {
     InvalidResponse,
     Envelope(EnvelopeError),
     Validate(ValidateError),
+    Time(std::time::SystemTimeError),
     Remote(String),
 }
 
@@ -101,7 +102,7 @@ impl From<ValidateError> for CmdError {
 }
 
 pub async fn handshake(broker: &mut Broker) -> Result<(), CmdError> {
-    expect! { broker.send(OutMessage::hello().map_err(SendError::TimeError)?)? };
+    expect! { broker.send(OutMessage::hello().map_err(CmdError::Time)?)? };
     expect! { let InMessage::Hello(s, r) = broker.read()? };
     broker.reposition(s, r + 1);
     Ok(())

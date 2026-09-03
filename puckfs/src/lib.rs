@@ -112,8 +112,6 @@ pub enum SendError {
     Crypto(#[from] aead::Error),
     #[error("io error: {0:?}")]
     Io(#[from] io::Error),
-    #[error("could not get system time")]
-    TimeError(#[from] std::time::SystemTimeError),
     #[error("already sending a message, wait")]
     Busy,
     #[error("message is too large")]
