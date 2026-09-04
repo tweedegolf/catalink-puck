@@ -1,8 +1,9 @@
 use gam::Point;
 
 use crate::ui::{
-    Key, Ui, UiEvent,
-    widgets::{Drawable, PositionAble, Selectable, Widget},
+    Key, Ui,
+    UiEvent::{self},
+    widgets::{Drawable, PositionAble, Selectable, Widget, WidgetEvent},
 };
 
 pub trait Scrollable: Widget + Drawable + Selectable + PositionAble {}
@@ -67,11 +68,15 @@ impl ScrollingSelector {
 }
 
 impl Widget for ScrollingSelector {
-    fn handle_event(&mut self, _ui: &Ui, event: &UiEvent) -> Result<(), xous::Error> {
+    fn handle_event(&mut self, ui: &mut Ui, event: &UiEvent) -> Result<(), xous::Error> {
         let mut change = false;
         match event {
-            UiEvent::Line(_) => (),
             UiEvent::Keys(keys) => {
+                if let Some(selection) = self.selected
+                    && keys.is_pressed(&Key::Enter)
+                {
+                    ui.add_event(UiEvent::WidgetEvent(WidgetEvent::Selected(selection)));
+                }
                 if keys.is_pressed(&Key::Char('↑')) {
                     if let Some(selected) = &mut self.selected {
                         if *selected != 0 {

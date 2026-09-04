@@ -25,6 +25,7 @@ fn main() -> ! {
     let mut ui = Ui::new(&xns, sid);
 
     let starting_screen = Box::new(crate::ui::screens::contacts::Contacts::new(&mut ui));
+    //let starting_screen = Box::new(crate::ui::screens::messages::Messages::new(&mut ui));
     ui.run(starting_screen);
 
     log::info!("Quitting");

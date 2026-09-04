@@ -1,12 +1,11 @@
 pub mod screens;
 pub mod widgets;
 
-use std::f32::consts::E;
-
 use num_traits::*;
 use ux_api::minigfx::*;
 
 use gam::{Gam, Gid, Point};
+use widgets::WidgetEvent;
 use xous::MessageEnvelope;
 use xous_ipc::Buffer;
 
@@ -31,6 +30,7 @@ pub enum Key {
     Fn2,
     Fn3,
     Fn4,
+    Enter,
     Unknown(u32),
 }
 
@@ -41,15 +41,19 @@ pub struct Keys {
 
 impl From<usize> for Key {
     fn from(value: usize) -> Self {
-        if let Some(c) = char::from_u32(value as u32) {
-            Self::Char(c)
-        } else {
-            match value {
-                11 => Self::Fn1,
-                12 => Self::Fn2,
-                13 => Self::Fn3,
-                14 => Self::Fn4,
-                _ => Self::Unknown(value as u32),
+        log::info!("Char: {value}");
+        match value {
+            13 => Self::Enter,
+            17 => Self::Fn1,
+            18 => Self::Fn2,
+            19 => Self::Fn3,
+            20 => Self::Fn4,
+            _ => {
+                if let Some(c) = char::from_u32(value as u32) {
+                    Self::Char(c)
+                } else {
+                    Self::Unknown(value as u32)
+                }
             }
         }
     }
@@ -61,11 +65,12 @@ impl Keys {
     }
 }
 
-#[derive(Debug)]
 pub enum UiEvent {
     Line(String),
     Keys(Keys),
     Redraw,
+    ChangeScreen(Box<dyn UiScreen>),
+    WidgetEvent(WidgetEvent),
     Quit,
 }
 
@@ -181,6 +186,10 @@ impl Ui {
         self.gam.post_textview(textview)
     }
 
+    pub fn bounds_compute_textview(&self, textview: &mut TextView) -> Result<(), xous::Error> {
+        self.gam.bounds_compute_textview(textview)
+    }
+
     pub fn draw_line(&self, line: Line) -> Result<(), xous::Error> {
         self.gam.draw_line(self.content, line)
     }
@@ -199,7 +208,7 @@ impl Ui {
 
     fn handle_event(
         &mut self,
-        screen: &mut dyn UiScreen,
+        screen: &mut Box<dyn UiScreen>,
         event: UiEvent,
     ) -> Result<(), xous::Error> {
         match event {
@@ -208,6 +217,9 @@ impl Ui {
             }
             UiEvent::Quit => {
                 self.running = false;
+            }
+            UiEvent::ChangeScreen(new_screen) => {
+                *screen = new_screen;
             }
             _ => screen.handle_event(self, event)?,
         }
@@ -220,12 +232,10 @@ impl Ui {
                 UiEvent::from_xous(xous::receive_message(self.sid).unwrap())
                     .expect("Failed to convert xous message"),
             );
-
             while let Some(event) = self.events.pop() {
-                self.handle_event(screen.as_mut(), event)
+                self.handle_event(&mut screen, event)
                     .expect("Failed to handle event");
             }
-
             if self.needs_redraw {
                 screen.redraw(self).expect("Failed to redraw screen");
                 self.gam.redraw().expect("Failed to redraw");

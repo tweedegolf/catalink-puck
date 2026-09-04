@@ -1,8 +1,9 @@
 use std::fmt::Write;
 
+use crate::ui::screens::messages::Messages;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
-use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget};
+use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget, WidgetEvent};
 use crate::ui::{Ui, UiEvent};
 
 use gam::{DrawStyle, GlyphStyle, PixelColor, Point, Rectangle, RoundedRectangle, TextBounds};
@@ -47,7 +48,7 @@ impl Drawable for Contact {
         ui.draw_rounded_rectangle(rect)?;
 
         let mut name = ui.new_textview(TextBounds::GrowableFromTl(
-            self.position + Point::new(INNER_MARGIN, INNER_MARGIN - 5),
+            self.position + Point::new(INNER_MARGIN + 3, INNER_MARGIN - 5),
             200,
         ));
         name.draw_border = false;
@@ -97,7 +98,7 @@ impl Drawable for Contact {
             ));
             amount.draw_border = true;
             amount.rounded_border = Some(5);
-            amount.margin = Point { x: 2, y: 2 };
+            amount.margin = Point { x: 4, y: 2 };
             amount.style = GlyphStyle::Regular;
             amount.clear_area = false;
             write!(amount.text, "{}", self.unread_count).unwrap();
@@ -282,6 +283,10 @@ impl crate::ui::UiScreen for Contacts {
     fn handle_event(&mut self, ui: &mut Ui, event: UiEvent) -> Result<(), xous::Error> {
         self.selector.handle_event(ui, &event)?;
         match event {
+            UiEvent::WidgetEvent(WidgetEvent::Selected(_selection)) => {
+                let messages_screen = Box::new(Messages::new(ui));
+                ui.add_event(UiEvent::ChangeScreen(messages_screen));
+            }
             _ => (),
         }
         Ok(())
