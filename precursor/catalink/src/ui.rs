@@ -1,14 +1,14 @@
 pub mod screens;
-pub mod widgetbox;
 pub mod widgets;
+
+use std::f32::consts::E;
 
 use num_traits::*;
 use ux_api::minigfx::*;
 
 use gam::{Gam, Gid, Point};
+use xous::MessageEnvelope;
 use xous_ipc::Buffer;
-
-use crate::ui::widgetbox::WidgetBox;
 
 pub trait UiScreen {
     fn redraw(&mut self, ui: &mut Ui) -> Result<(), xous::Error>;
@@ -65,6 +65,43 @@ impl Keys {
 pub enum UiEvent {
     Line(String),
     Keys(Keys),
+    Redraw,
+    Quit,
+}
+
+impl UiEvent {
+    pub fn from_xous(msg: MessageEnvelope) -> Result<UiEvent, xous::Error> {
+        match FromPrimitive::from_usize(msg.body.id()) {
+            Some(RawUiEvent::Redraw) | Some(RawUiEvent::Focus) => Ok(UiEvent::Redraw),
+            Some(RawUiEvent::Line) => {
+                let buffer =
+                    unsafe { Buffer::from_memory_message(msg.body.memory_message().unwrap()) };
+                let s = buffer.as_flat::<String, _>().unwrap().to_string();
+                Ok(UiEvent::Line(s))
+            }
+            Some(RawUiEvent::Quit) => Ok(UiEvent::Quit),
+            Some(RawUiEvent::Key) => {
+                if let xous::Message::Scalar(xous::ScalarMessage {
+                    id: _,
+                    arg1: k1,
+                    arg2: k2,
+                    arg3: k3,
+                    arg4: k4,
+                }) = msg.body
+                {
+                    {
+                        let keys = Keys {
+                            keys: [Key::from(k1), Key::from(k2), Key::from(k3), Key::from(k4)],
+                        };
+                        Ok(UiEvent::Keys(keys))
+                    }
+                } else {
+                    Err(xous::Error::ParseError)
+                }
+            }
+            None => Err(xous::Error::ParseError),
+        }
+    }
 }
 
 pub struct Ui {
@@ -73,6 +110,8 @@ pub struct Ui {
     pub sid: xous::SID,
     pub content: Gid,
     events: Vec<UiEvent>,
+    needs_redraw: bool,
+    running: bool,
 }
 
 impl Ui {
@@ -104,6 +143,8 @@ impl Ui {
             content,
             sid,
             events: Vec::new(),
+            needs_redraw: false,
+            running: true,
         }
     }
 
@@ -128,8 +169,8 @@ impl Ui {
         self.events.push(event);
     }
 
-    pub fn redraw(&self) -> Result<(), xous::Error> {
-        self.gam.redraw()
+    pub fn redraw(&mut self) {
+        self.needs_redraw;
     }
 
     pub fn new_textview(&self, bounds: TextBounds) -> TextView {
@@ -156,42 +197,40 @@ impl Ui {
         self.gam.draw_circle(self.content, circ)
     }
 
-    pub fn run(&mut self, initial: Box<dyn UiScreen>) {
-        let mut screen = initial;
-        screen.redraw(self).expect("Failed to redraw");
-        loop {
-            let msg = xous::receive_message(self.sid).unwrap();
-            match FromPrimitive::from_usize(msg.body.id()) {
-                Some(RawUiEvent::Redraw) => {
-                    self.redraw().expect("Failed to redraw");
-                }
-                Some(RawUiEvent::Line) => {
-                    let buffer =
-                        unsafe { Buffer::from_memory_message(msg.body.memory_message().unwrap()) };
-                    let s = buffer.as_flat::<String, _>().unwrap().to_string();
-                    screen
-                        .handle_event(self, UiEvent::Line(s))
-                        .expect("Failed to handle event");
-                }
-                Some(RawUiEvent::Quit) => {
-                    log::info!("Quitting application");
-                    break;
-                }
-                Some(RawUiEvent::Key) => xous::msg_scalar_unpack!(msg, k1, k2, k3, k4, {
-                    let keys = Keys {
-                        keys: [Key::from(k1), Key::from(k2), Key::from(k3), Key::from(k4)],
-                    };
-                    screen
-                        .handle_event(self, UiEvent::Keys(keys))
-                        .expect("Failed to handle key event");
-                }),
-                Some(RawUiEvent::Focus) => {
-                    screen.redraw(self).expect("Failed to redraw");
-                }
-                _ => {
-                    log::error!("Got unknown message");
-                }
+    fn handle_event(
+        &mut self,
+        screen: &mut dyn UiScreen,
+        event: UiEvent,
+    ) -> Result<(), xous::Error> {
+        match event {
+            UiEvent::Redraw => {
+                self.needs_redraw = true;
+            }
+            UiEvent::Quit => {
+                self.running = false;
+            }
+            _ => screen.handle_event(self, event)?,
+        }
+        Ok(())
+    }
+
+    pub fn run(&mut self, mut screen: Box<dyn UiScreen>) {
+        while self.running {
+            self.events.push(
+                UiEvent::from_xous(xous::receive_message(self.sid).unwrap())
+                    .expect("Failed to convert xous message"),
+            );
+
+            while let Some(event) = self.events.pop() {
+                self.handle_event(screen.as_mut(), event)
+                    .expect("Failed to handle event");
+            }
+
+            if self.needs_redraw {
+                screen.redraw(self).expect("Failed to redraw screen");
+                self.gam.redraw().expect("Failed to redraw");
             }
         }
+        log::info!("Shutting down catalink");
     }
 }

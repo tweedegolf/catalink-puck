@@ -24,9 +24,8 @@ fn main() -> ! {
     std::thread::sleep(Duration::from_secs(5));
     let mut ui = Ui::new(&xns, sid);
 
-    ui.run(Box::new(crate::ui::screens::contacts::Contacts::new(
-        ui.screen_size,
-    )));
+    let starting_screen = Box::new(crate::ui::screens::contacts::Contacts::new(&mut ui));
+    ui.run(starting_screen);
 
     log::info!("Quitting");
     xous::terminate_process(0)

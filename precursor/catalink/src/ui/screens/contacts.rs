@@ -1,9 +1,9 @@
 use std::fmt::Write;
 
-use crate::ui::widgets::Widget;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
-use crate::ui::{Key, Ui, UiEvent, WidgetBox};
+use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget};
+use crate::ui::{Ui, UiEvent};
 
 use gam::{DrawStyle, GlyphStyle, PixelColor, Point, Rectangle, RoundedRectangle, TextBounds};
 
@@ -23,8 +23,8 @@ pub struct Contact {
     position: Point,
 }
 
-impl Widget for Contact {
-    fn redraw(&mut self, ui: &Ui) -> Result<(), xous::Error> {
+impl Drawable for Contact {
+    fn redraw(&mut self, ui: &mut Ui) -> Result<(), xous::Error> {
         let rect = RoundedRectangle {
             border: Rectangle {
                 tl: Point::new(
@@ -105,43 +105,46 @@ impl Widget for Contact {
         }
         Ok(())
     }
+}
 
-    fn get_size(&self) -> Option<Point> {
-        Some(Point::new(self.width, HEIGHT))
+impl PositionAble for Contact {
+    fn get_size(&self) -> Point {
+        Point::new(self.width, HEIGHT)
     }
 
     fn set_position(&mut self, position: Point) {
         self.position = position
     }
+}
 
+impl Selectable for Contact {
     fn set_selected(&mut self, selected: bool) {
         self.selected = selected;
     }
 }
 
+impl Widget for Contact {}
+
 pub struct Contacts {
-    pub scroll_position: isize,
-    widgets: WidgetBox,
+    selector: ScrollingSelector,
+    button_bar: ButtonBar,
 }
 
 impl Contacts {
-    pub fn new(screen_size: Point) -> Contacts {
-        let mut widgets = WidgetBox::new();
-        let mut selector = ScrollingSelector::new(screen_size.y - 40);
-
-        let widget_ref = widgets.add(Contact {
-            selected: false,
+    pub fn new(ui: &mut Ui) -> Contacts {
+        let mut selector = ScrollingSelector::new(ui.screen_size.y - 40);
+        selector.add(Contact {
             name: "United States".to_string(),
-            position: Point { x: 0, y: 0 },
             last_message: "Hi".to_string(),
             last_message_time: "09/02/26 00:00".to_string(),
             self_sent: false,
             unread_count: 5,
-            width: screen_size.x,
+            selected: false,
+            position: Point { x: 0, y: 0 },
+            width: ui.screen_size.x,
         });
-        selector.add(&widgets, widget_ref);
 
-        let widget_ref = widgets.add(Contact {
+        selector.add(Contact {
             selected: true,
             name: "China".to_string(),
             position: Point { x: 0, y: 60 },
@@ -149,11 +152,10 @@ impl Contacts {
             last_message_time: "09/02/26 00:00".to_string(),
             self_sent: true,
             unread_count: 0,
-            width: screen_size.x,
+            width: ui.screen_size.x,
         });
-        selector.add(&widgets, widget_ref);
 
-        let widget_ref = widgets.add(Contact {
+        selector.add(Contact {
             selected: false,
             name: "Russia".to_string(),
             position: Point { x: 0, y: 120 },
@@ -161,11 +163,10 @@ impl Contacts {
             last_message_time: "09/02/26 00:00".to_string(),
             self_sent: false,
             unread_count: 3,
-            width: screen_size.x,
+            width: ui.screen_size.x,
         });
-        selector.add(&widgets, widget_ref);
 
-        let widget_ref = widgets.add(Contact {
+        selector.add(Contact {
             selected: false,
             name: "France".to_string(),
             position: Point { x: 0, y: 180 },
@@ -173,11 +174,10 @@ impl Contacts {
             last_message_time: "09/02/26 00:00".to_string(),
             self_sent: false,
             unread_count: 3,
-            width: screen_size.x,
+            width: ui.screen_size.x,
         });
-        selector.add(&widgets, widget_ref);
 
-        let widget_ref = widgets.add(Contact {
+        selector.add(Contact {
             selected: false,
             name: "United Kingdom".to_string(),
             position: Point { x: 0, y: 240 },
@@ -185,11 +185,10 @@ impl Contacts {
             last_message_time: "09/02/26 00:00".to_string(),
             self_sent: false,
             unread_count: 0,
-            width: screen_size.x,
+            width: ui.screen_size.x,
         });
-        selector.add(&widgets, widget_ref);
 
-        let widget_ref = widgets.add(Contact {
+        selector.add(Contact {
             selected: false,
             name: "India".to_string(),
             position: Point { x: 0, y: 300 },
@@ -197,11 +196,10 @@ impl Contacts {
             last_message_time: "09/02/26 00:00".to_string(),
             self_sent: false,
             unread_count: 0,
-            width: screen_size.x,
+            width: ui.screen_size.x,
         });
-        selector.add(&widgets, widget_ref);
 
-        let widget_ref = widgets.add(Contact {
+        selector.add(Contact {
             selected: false,
             name: "Jeremy".to_string(),
             position: Point { x: 0, y: 360 },
@@ -209,11 +207,10 @@ impl Contacts {
             last_message_time: "09/02/26 00:00".to_string(),
             self_sent: false,
             unread_count: 0,
-            width: screen_size.x,
+            width: ui.screen_size.x,
         });
-        selector.add(&widgets, widget_ref);
 
-        let widget_ref = widgets.add(Contact {
+        selector.add(Contact {
             selected: false,
             name: "Susan".to_string(),
             position: Point { x: 0, y: 420 },
@@ -221,11 +218,10 @@ impl Contacts {
             last_message_time: "09/02/26 00:00".to_string(),
             self_sent: false,
             unread_count: 0,
-            width: screen_size.x,
+            width: ui.screen_size.x,
         });
-        selector.add(&widgets, widget_ref);
 
-        let widget_ref = widgets.add(Contact {
+        selector.add(Contact {
             selected: false,
             name: "Susan2".to_string(),
             position: Point { x: 0, y: 480 },
@@ -233,11 +229,10 @@ impl Contacts {
             last_message_time: "09/02/26 00:00".to_string(),
             self_sent: false,
             unread_count: 0,
-            width: screen_size.x,
+            width: ui.screen_size.x,
         });
-        selector.add(&widgets, widget_ref);
 
-        let widget_ref = widgets.add(Contact {
+        selector.add(Contact {
             selected: false,
             name: "Jeremy3".to_string(),
             position: Point { x: 0, y: 540 },
@@ -245,13 +240,12 @@ impl Contacts {
             last_message_time: "09/02/26 00:00".to_string(),
             self_sent: false,
             unread_count: 0,
-            width: screen_size.x,
+            width: ui.screen_size.x,
         });
-        selector.add(&widgets, widget_ref);
-        selector.update(&widgets);
-        widgets.add(selector);
+        selector.update();
 
-        widgets.add(ButtonBar::new(
+        let button_bar = ButtonBar::new(
+            ui,
             40,
             vec![
                 BarButton::new("☰")
@@ -267,11 +261,11 @@ impl Contacts {
                     .style(GlyphStyle::Large)
                     .offset(Point { x: -4, y: -4 }),
             ],
-        ));
+        );
 
         Self {
-            scroll_position: 0,
-            widgets,
+            button_bar,
+            selector,
         }
     }
 }
@@ -279,31 +273,15 @@ impl Contacts {
 impl crate::ui::UiScreen for Contacts {
     fn redraw(&mut self, ui: &mut Ui) -> Result<(), xous::Error> {
         ui.clear();
-        self.widgets.redraw(ui)?;
-        ui.redraw()?;
+        self.selector.redraw(ui)?;
+        self.button_bar.redraw(ui)?;
+        ui.redraw();
         Ok(())
     }
 
     fn handle_event(&mut self, ui: &mut Ui, event: UiEvent) -> Result<(), xous::Error> {
-        self.widgets.handle_event(ui, &event)?;
+        self.selector.handle_event(ui, &event)?;
         match event {
-            UiEvent::Keys(keys) => {
-                let mut redraw = false;
-                if keys.is_pressed(&Key::Char('↑')) {
-                    self.scroll_position += 35;
-                    redraw = true;
-                }
-                if keys.is_pressed(&Key::Char('↓')) {
-                    self.scroll_position -= 35;
-                    if self.scroll_position < 0 {
-                        self.scroll_position = 0;
-                    }
-                    redraw = true;
-                }
-                if redraw {
-                    self.redraw(ui)?;
-                }
-            }
             _ => (),
         }
         Ok(())

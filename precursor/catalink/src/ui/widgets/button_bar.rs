@@ -1,5 +1,7 @@
-use crate::ui::Ui;
-use crate::ui::widgets::Widget;
+use crate::ui::{
+    Ui,
+    widgets::{Drawable, PositionAble},
+};
 use blitstr2::glyphstyle::glyph_to_height_hint;
 use gam::{DrawStyle, GlyphStyle, PixelColor, Point, Rectangle, TEXTVIEW_DEFAULT_STYLE};
 
@@ -12,7 +14,11 @@ pub struct BarButton {
 
 impl BarButton {
     pub fn new(text: &'static str) -> Self {
-        Self { text, style: None, offset: None }
+        Self {
+            text,
+            style: None,
+            offset: None,
+        }
     }
 
     pub fn style(mut self, style: GlyphStyle) -> Self {
@@ -28,24 +34,33 @@ impl BarButton {
 
 #[derive(Debug)]
 pub struct ButtonBar {
-    height: isize,
+    size: Point,
     buttons: Vec<BarButton>,
 }
 
 impl ButtonBar {
-    pub fn new(height: isize, buttons: Vec<BarButton>) -> Self {
-        Self { height, buttons }
+    pub fn new(ui: &mut Ui, height: isize, buttons: Vec<BarButton>) -> Self {
+        Self {
+            size: Point::new(ui.screen_size.x, height),
+            buttons,
+        }
     }
 }
 
-impl Widget for ButtonBar {
-    fn redraw(&mut self, ui: &Ui) -> Result<(), xous::Error> {
+impl Drawable for ButtonBar {
+    fn redraw(&mut self, ui: &mut Ui) -> Result<(), xous::Error> {
         let width = ui.screen_size.x / self.buttons.len() as isize;
         for (i, button) in self.buttons.iter().enumerate() {
             let offset = width * i as isize - 1;
             let bounds = Rectangle {
-                tl: gam::Point { x: offset, y: ui.screen_size.y - self.height },
-                br: Point { x: width + offset, y: ui.screen_size.y - 1 },
+                tl: gam::Point {
+                    x: offset,
+                    y: ui.screen_size.y - self.size.y,
+                },
+                br: Point {
+                    x: width + offset,
+                    y: ui.screen_size.y - 1,
+                },
                 style: DrawStyle {
                     fill_color: Some(PixelColor::Light),
                     stroke_color: Some(PixelColor::Dark),
@@ -54,7 +69,7 @@ impl Widget for ButtonBar {
             };
             ui.draw_rectangle(bounds)?;
             let mut text_bounds = bounds;
-            text_bounds.tl.y += (self.height
+            text_bounds.tl.y += (self.size.y
                 - glyph_to_height_hint(button.style.unwrap_or(TEXTVIEW_DEFAULT_STYLE)) as isize)
                 / 2;
 
