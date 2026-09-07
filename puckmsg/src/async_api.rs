@@ -1,3 +1,8 @@
+//! Convenience high-level API that integrates puckmsg and puckfs layers.
+//! This is not a fully async API (in the normal sense) since some of the operations
+//! might temporarily block.
+//! But we don't expect a full async runtime to be used on the Precursor.
+
 use super::{EnvelopeError, ValidateError};
 use puckfs::{Broker, DirView, InMessage, OutMessage, RecvError, SendError};
 
@@ -88,6 +93,7 @@ impl From<EnvelopeError> for CmdError {
     }
 }
 
+/// Perform a handshake with a broker (that is already opened)
 pub async fn handshake(broker: &mut Broker) -> Result<(), CmdError> {
     expect! { broker.send(OutMessage::hello()?)? };
     expect! { let InMessage::Hello(s, r) = broker.read()? };
@@ -95,6 +101,8 @@ pub async fn handshake(broker: &mut Broker) -> Result<(), CmdError> {
     Ok(())
 }
 
+/// Retrieve a directory listing from the puckfs path given by `dir`. The directory should
+/// end in a forward slash.
 pub async fn dir(broker: &mut Broker, dir: &str) -> Result<DirView, CmdError> {
     expect! { broker.send(OutMessage::ReadDir(dir.as_bytes()))? };
     expect! { let InMessage::ReadDir(entries) = broker.read()? };
@@ -102,6 +110,7 @@ pub async fn dir(broker: &mut Broker, dir: &str) -> Result<DirView, CmdError> {
     Ok(entries)
 }
 
+/// Post a message with sender (`from`) and receivers (`to`) indicated by their nicknames.
 pub async fn post(
     broker: &mut Broker,
     from: &str,
@@ -125,6 +134,8 @@ pub async fn post(
     Ok(())
 }
 
+/// Retrieve messages from a named inbox (this would typically be a nickname), and
+/// delete them upon succesful reception.
 pub async fn get(
     broker: &mut Broker,
     inbox: &str,
@@ -153,6 +164,7 @@ pub async fn get(
     Ok(results)
 }
 
+/// Delete a file on the remote puckfs broker.
 pub async fn delete(broker: &mut Broker, path: &str) -> Result<(), CmdError> {
     expect! { broker.send(OutMessage::Remove(path.as_bytes()))? };
     expect! { let InMessage::Remove = broker.read()? };

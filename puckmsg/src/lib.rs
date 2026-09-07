@@ -1,15 +1,28 @@
 pub mod async_api;
 
+/// A newtype representing the ID of a Principal
 #[derive(Debug, Copy, Clone, zeroize::Zeroize, Eq, PartialEq)]
 pub struct ID(pub u32);
 
+/// A newtype representing the ID of a symmetric cryptographic key.
 #[derive(Debug, Copy, Clone, zeroize::Zeroize, Eq, PartialEq)]
 pub struct KeyID(pub u32);
 
+/// A "Principal" as contained in the database.
 pub struct Principal {
     id: ID,
     our: Key,
     their: Key,
+}
+
+impl std::fmt::Debug for Principal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Principal {{ id: {:?}, our: <HIDDEN>, their: <HIDDEN> }}",
+            self.id
+        )
+    }
 }
 
 #[derive(zeroize::Zeroize)]
@@ -71,6 +84,9 @@ pub enum ValidateError {
 
 const VERSION: [u8; 4] = *b"HOT3";
 
+/// Prepare a message for sending over puckfs.
+/// This expects: `sender` to contain the nickname of the sender, and `recipients` to
+/// be a collection of nicknames of recipients.
 pub fn envelope<Iter>(
     sender: &str,
     recipients: Iter,
@@ -172,6 +188,8 @@ where
     ciphertexts.collect()
 }
 
+/// Validate and parse a received message. If succesful, this return the nickname of the
+/// sender, the nicknames of the recipients, and the raw message contents.
 pub fn validate(blob: &[u8]) -> Result<(String, Vec<String>, Vec<u8>), ValidateError> {
     let (rcpt_key_id, blob) = blob
         .split_first_chunk::<4>()

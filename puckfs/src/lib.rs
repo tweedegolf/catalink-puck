@@ -18,9 +18,11 @@ macro_rules! debug_println {
     }
 }
 
+/// This represents a "hello" sent to a puckfs server. Note that a hello message is time-sensitive.
 #[derive(Debug, Copy, Clone)]
 pub struct HelloMsg(u128);
 
+/// The messages that can be sent to a remote puckfs server.
 #[derive(Debug, Copy, Clone)]
 #[repr(u16)]
 pub enum OutMessage<'a> {
@@ -33,6 +35,7 @@ pub enum OutMessage<'a> {
     ReadDir(&'a [u8]),
 }
 
+/// Messages received from a remote puckfs server.
 #[derive(Debug, Clone)]
 #[repr(u16)]
 pub enum InMessage {
@@ -46,9 +49,12 @@ pub enum InMessage {
     ReadDir(DirView),
 }
 
+/// Represent a directory structure received from the remote.
+/// Using `.iter()` gives the directory entries.
 #[derive(Debug, Clone)]
 pub struct DirView(MsgBuffer);
 
+/// A directory entry from a `DirView` structure.
 #[derive(Debug, Clone, Copy)]
 pub struct DirEntry<'a> {
     pub file_name: &'a [u8],
@@ -168,6 +174,7 @@ type SecretKey = aead::Key<chacha20poly1305::XChaCha20Poly1305>;
 type UdpBuffer = arrayvec::ArrayVec<u8, MAX_MTU_SIZE>;
 pub type MsgBuffer = arrayvec::ArrayVec<u8, MAX_MESSAGE_SIZE>;
 
+/// An object represents the connection to a remote puckfs broker.
 #[allow(non_snake_case)]
 pub struct Broker {
     socket: net::UdpSocket,
@@ -179,6 +186,7 @@ pub struct Broker {
 }
 
 impl Broker {
+    /// Open a new connection to a puckfs broker.
     pub fn open(addr: impl net::ToSocketAddrs) -> Result<Self, BrokerError> {
         let socket = net::UdpSocket::bind("0.0.0.0:0")?;
         socket.connect(addr)?;
@@ -334,6 +342,8 @@ impl Broker {
         Ok(buf)
     }
 
+    /// Attempt to send messages that are currently scheduled to be resent, and receive messages
+    /// from the remote. This can block for a maximum duration of `READ_TIMEOUT`.
     pub fn perform_io(&mut self) -> Result<(), aead::Error> {
         if self.send.is_stale(RETRY_TIMEOUT) {
             //debug_println!("no ackno, retrying... {}", self.send.r.0);
@@ -376,6 +386,8 @@ impl Broker {
         Ok(())
     }
 
+    /// Immediately send a message to the remote puckfs broker, and store it in an internal
+    /// send buffer to be re-sent if needed.
     pub fn send(&mut self, cmd: OutMessage) -> Result<(), SendError> {
         let (cmd, data) = to_raw_packet(cmd).ok_or(SendError::TooLarge)?;
         let mut data = data.as_ref();
@@ -406,6 +418,7 @@ impl Broker {
         Ok(())
     }
 
+    /// Attempt to retrieve a message from the internal receive buffer.
     pub fn read(&mut self) -> Result<InMessage, RecvError> {
         let mut buffer = MsgBuffer::new();
 
@@ -425,6 +438,8 @@ impl Broker {
         Ok(from_raw_packet(cmd, data))
     }
 
+    /// Re-synchronize the internal buffers with a "hello" message received from
+    /// the remote puckfs broker.
     pub fn reposition(&mut self, send_pos: u32, recv_pos: u32) {
         self.send.reposition(send_pos);
         self.recv.reposition(recv_pos);
@@ -432,6 +447,7 @@ impl Broker {
 }
 
 impl OutMessage<'_> {
+    /// Generate a fresh "hello" message.
     pub fn hello() -> Result<OutMessage<'static>, std::time::SystemTimeError> {
         use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -442,6 +458,7 @@ impl OutMessage<'_> {
 }
 
 impl DirView {
+    /// Give an iterator of `DirEntry` items listing the entries in a `DirView`.
     pub fn iter(&self) -> impl Iterator<Item = DirEntry<'_>> {
         self.0
             .split(|&x| x == b'\n')

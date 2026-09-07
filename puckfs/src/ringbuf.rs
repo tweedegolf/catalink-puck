@@ -1,5 +1,7 @@
 use std::time::{Duration, Instant};
 
+/// This type signifies that a push to the ringbuffer failed. This allows using the
+/// more explicit Result<(), Error> instead of Option<()>,
 #[derive(Debug)]
 pub struct Error;
 
@@ -26,6 +28,8 @@ impl std::ops::AddAssign<u32> for Index {
 }
 
 #[derive(Debug)]
+/// A ringbuffer with a capacity of `N` elements of type `T`, that maintains a
+/// monotonically increasing count and a timestamp when each elements was last updated.
 pub struct Buffer<T, const N: usize> {
     pub r: Index,
     pub w: Index,
@@ -33,6 +37,7 @@ pub struct Buffer<T, const N: usize> {
 }
 
 impl<const N: usize, T: Default> Buffer<T, N> {
+    /// Create a new ringbuffer with initial "count" `start`.
     pub fn new(start: u32) -> Self {
         let now = Instant::now();
         Self {
@@ -44,6 +49,7 @@ impl<const N: usize, T: Default> Buffer<T, N> {
 }
 
 impl<const N: usize, T> Buffer<T, N> {
+    /// Return the amount of elements currently queued in the ring buffer.
     pub fn len(&self) -> usize {
         assert!(self.w >= self.r);
 
@@ -52,6 +58,7 @@ impl<const N: usize, T> Buffer<T, N> {
             .expect("memory indexing error")
     }
 
+    /// Returns true of the ring buffer is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -60,15 +67,19 @@ impl<const N: usize, T> Buffer<T, N> {
         self.len() == N
     }
 
+    /// Return the "count" of the next item that will be stored in the buffer.
     pub fn count(&self) -> u32 {
         self.w.0
     }
 
+    /// Clear queued elements with a "count" value up to and including `ackd` from
+    /// the ring buffer.
     pub fn mark_clear(&mut self, ackd: u32) {
         use std::cmp::{max, min};
         self.r = max(self.r, min(self.w, Index(ackd + 1)));
     }
 
+    /// Update the time stamp of all elements currently queued in the ring buffer.
     pub fn mark_sent(&mut self) {
         let start = self.r % N;
         let stop = self.w % N;
@@ -79,6 +90,8 @@ impl<const N: usize, T> Buffer<T, N> {
         }
     }
 
+    /// Add a new element to the ring buffer. Returns an `Error` if the ring buffer
+    /// doesn't have enough capacity.
     pub fn push(&mut self, buf: T) -> Result<(), Error> {
         if self.is_full() {
             return Err(Error);
@@ -91,6 +104,7 @@ impl<const N: usize, T> Buffer<T, N> {
         Ok(())
     }
 
+    /// Returns true if the oldest item in the ring buffer is older than `timeout`.
     pub fn is_stale(&self, timeout: Duration) -> bool {
         if self.is_empty() {
             return false;
@@ -104,6 +118,9 @@ impl<const N: usize, T> Buffer<T, N> {
         age > timeout
     }
 
+    /// Without clearing the queued elements, change the "count" of the ring buffer.
+    /// This can be used to synchronize counts with a remote ring buffer without losing
+    /// packets.
     pub fn reposition(&mut self, count: u32) {
         let diff = count.wrapping_sub(self.w.0);
         self.w.0 = self.w.0.wrapping_add(diff);
@@ -112,6 +129,8 @@ impl<const N: usize, T> Buffer<T, N> {
 }
 
 impl<const N: usize, T: Clone> Buffer<T, N> {
+    /// Provide an iterator that returns the elements currently queued in the ring buffer
+    /// together with their "count".
     pub fn queue(&self) -> impl Iterator<Item = (u32, T)> {
         let start = self.r.0;
         let stop = self.w.0;
