@@ -20,8 +20,7 @@ Follow these steps to integrate the app into the "xous-core" repo:
         }
     }
 ```
-4. Add the crate to the "Cargo.toml" file in the root of the xous-core repo. It needs to be both in "default-members" and "members": `services/gam/src/api.rs`.
-
+4. Add the crate to the "Cargo.toml" file in the root of the xous-core repo. It needs to be both in "default-members" and "members": `apps/catalink`.
 
 ## Running
 ### Running on the precursor
@@ -39,3 +38,8 @@ cargo xtask run catalink
 ```
 A window should open with the precursor interface.
 To open the app you will need to press the "home" key on your keyboard, select "Switch app" and confirm with the "home" key, finally select "catalink" and confirm by pressing "home" again.
+
+### Flashing to the precursor
+
+In the `tools/` folder of xous-core, run `python3 usb_update.py -k`. Before trying this the first time, you should consult the README in that
+folder and follow the instructions to install the necessary Python dependencies.
