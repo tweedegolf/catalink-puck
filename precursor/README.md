@@ -31,8 +31,8 @@ cargo xtask app-image-xip catalink
 This will build an image of the kernel with the catalink app.
 To open the app you will need to press the center key of the directional pad in the center, select "Switch app" and finally select "catalink".
 
-### Running in the emulator
-To run the app in the emulator simply run the following command:
+### Running in the simulator
+To run the app in the simulator simply run the following command:
 ```
 cargo xtask run catalink
 ```
@@ -41,5 +41,51 @@ To open the app you will need to press the "home" key on your keyboard, select "
 
 ### Flashing to the precursor
 
-In the `tools/` folder of xous-core, run `python3 usb_update.py -k`. Before trying this the first time, you should consult the README in that
-folder and follow the instructions to install the necessary Python dependencies.
+In the `tools/` folder of xous-core, run `python3 usb_update.py -k`.
+
+Before trying this the first time, you'll need to set up a few things:
+
+- Set up a Python3 virtual environment:
+      python3 -m venv venv
+
+- Enter the Python3 virtual environment:
+      source venv/bin/activate
+
+- Install `cmake`, `yasm` using your distro package manager if you don't already have them.
+
+- Install Python crypto components:
+
+      pip install pycryptodome cryptography six
+
+- Install other Python dependencies, we've identified at least these two on a more or less vanilla Ubuntu system:
+
+      pip install pyusb progressbar2
+
+- Add a `udev` rule to be able to access the precursor, by adding a file at `/etc/udev/rules.d/99-precursor-usb.rules` containing:
+
+      SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="5bf0", GROUP="plugdev", TAG+="uaccess"
+
+  Afterwards reload the `udev` rules using:
+
+      sudo udevadm control --reload-rules
+      sudo udevadm trigger
+
+- Install the precursorupdater and update your device before flashing:
+
+      pip install precursorupdater
+      precursorupdater
+
+For more information consult the README in the `tools/` folder.
+
+### Running inside the Renode emulator
+
+The normal simulator just runs the Xous app in a normal Rust environment that has been customized to *apear to be* a Precursor. But it
+does not actually run the code that will be installed on the Precursor. To do that without actually flashing the device, use:
+
+     cargo xtask renode-image catalink
+     renode emulation/xous-release.resc
+
+This will require renode, found at https://github.com/renode/. You may be able to install it from your package manager:
+
+     paru -S renode (Arch Linux)
+     brew install renode/tap/renode (MacOS)
