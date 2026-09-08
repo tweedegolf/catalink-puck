@@ -7,6 +7,8 @@ can be implemented on Precursor, and to invite interest and feedback on the tech
 in the internal protocol, cryptographic design, user interface, supply chain, and effects on
 implementation of these choices.
 
+For an introduction of CATALINK aimed at a general audience, visit https://catalink.org/
+
 Organisation
 ------------
 
