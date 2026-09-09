@@ -1,5 +1,6 @@
 use std::fmt::Write;
 
+use crate::ui::screens::UiScreen;
 use crate::ui::screens::messages::Messages;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
@@ -271,7 +272,7 @@ impl Contacts {
     }
 }
 
-impl crate::ui::UiScreen for Contacts {
+impl UiScreen for Contacts {
     fn redraw(&mut self, ui: &mut Ui) -> Result<(), xous::Error> {
         ui.clear();
         self.selector.redraw(ui)?;

@@ -1,6 +1,7 @@
 use std::fmt::Write;
 
 use crate::ui::UiEvent::ChangeScreen;
+use crate::ui::screens::UiScreen;
 use crate::ui::screens::contacts::Contacts;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
@@ -12,7 +13,6 @@ use gam::{GlyphStyle, Line, Point, TextBounds, TextView};
 const OUTER_MARGIN: isize = 2;
 const MESSAGE_MARGIN: isize = 5;
 const SEND_REC_MARGIN: isize = 10;
-const HEIGHT: isize = 60;
 const LINE_HEIGHT: isize = 23;
 
 #[derive(Debug)]
@@ -157,7 +157,7 @@ impl Messages {
     }
 }
 
-impl crate::ui::UiScreen for Messages {
+impl UiScreen for Messages {
     fn redraw(&mut self, ui: &mut Ui) -> Result<(), xous::Error> {
         ui.clear();
         self.selector.redraw(ui)?;

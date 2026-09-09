@@ -9,10 +9,7 @@ use widgets::WidgetEvent;
 use xous::MessageEnvelope;
 use xous_ipc::Buffer;
 
-pub trait UiScreen {
-    fn redraw(&mut self, ui: &mut Ui) -> Result<(), xous::Error>;
-    fn handle_event(&mut self, ui: &mut Ui, event: UiEvent) -> Result<(), xous::Error>;
-}
+use crate::ui::screens::UiScreen;
 
 #[derive(Debug, num_derive::FromPrimitive, num_derive::ToPrimitive)]
 enum RawUiEvent {

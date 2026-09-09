@@ -1,7 +1,4 @@
-use crate::ui::{
-    Ui,
-    widgets::{Drawable, PositionAble},
-};
+use crate::ui::{Ui, widgets::Drawable};
 use blitstr2::glyphstyle::glyph_to_height_hint;
 use gam::{DrawStyle, GlyphStyle, PixelColor, Point, Rectangle, TEXTVIEW_DEFAULT_STYLE};
 
