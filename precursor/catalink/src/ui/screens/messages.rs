@@ -7,10 +7,7 @@ use crate::ui::widgets::scrolling_selector::ScrollingSelector;
 use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget};
 use crate::ui::{Key, Ui, UiEvent};
 
-use gam::{
-    DrawStyle, GlyphStyle, Line, PixelColor, Point, Rectangle, RoundedRectangle, TextBounds,
-    TextView,
-};
+use gam::{GlyphStyle, Line, Point, TextBounds, TextView};
 
 const OUTER_MARGIN: isize = 2;
 const MESSAGE_MARGIN: isize = 5;
@@ -131,7 +128,7 @@ impl Messages {
         selector.add(Message::new(ui, "United States".to_string(), false, "Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.".to_string()));
         selector.add(Message::new(ui, "Me".to_string(),true, "Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.".to_string() ));
         selector.add(Message::new(ui, "Me".to_string(),true, "Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.".to_string() ));
-
+        selector.set_selection(selector.len() - 1);
         selector.update();
 
         let button_bar = ButtonBar::new(

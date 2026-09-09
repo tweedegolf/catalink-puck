@@ -30,6 +30,22 @@ impl ScrollingSelector {
         self.widgets.push(Box::new(widget));
     }
 
+    pub fn set_selection(&mut self, selection: usize) {
+        if self.widgets.is_empty() {
+            return;
+        }
+        let len = self.widgets.len();
+        if len >= selection {
+            self.selected = Some(len - 1);
+        } else {
+            self.selected = Some(selection);
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.widgets.len()
+    }
+
     fn scroll(&mut self, selected: usize) {
         let mut offset = 0;
         for (index, widget) in self.widgets.iter().enumerate() {
@@ -77,7 +93,7 @@ impl Widget for ScrollingSelector {
                 {
                     ui.add_event(UiEvent::WidgetEvent(WidgetEvent::Selected(selection)));
                 }
-                if keys.is_pressed(&Key::Char('↑')) {
+                if keys.is_pressed(&Key::Char('↑')) && !self.widgets.is_empty() {
                     if let Some(selected) = &mut self.selected {
                         if *selected != 0 {
                             *selected -= 1;
@@ -87,7 +103,7 @@ impl Widget for ScrollingSelector {
                     }
                     change = true;
                 }
-                if keys.is_pressed(&Key::Char('↓')) {
+                if keys.is_pressed(&Key::Char('↓')) && !self.widgets.is_empty() {
                     if let Some(selected) = &mut self.selected {
                         *selected += 1;
                         if *selected >= self.widgets.len() {
