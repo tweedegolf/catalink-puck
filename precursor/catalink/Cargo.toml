@@ -19,6 +19,12 @@ ime-plugin-shell = { path = "../../services/ime-plugin-shell" }
 blitstr2 = { path = "../../libs/blitstr2"}
 thiserror = "2.0.20"
 
+rkyv = { version = "0.8.8", default-features = false, features = [
+    "std",
+    "alloc",
+] }
+
+
 [features]
 tts = []
 default = []
