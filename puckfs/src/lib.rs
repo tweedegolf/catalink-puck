@@ -188,7 +188,14 @@ pub struct Broker {
 impl Broker {
     /// Open a new connection to a puckfs broker.
     pub fn open(addr: impl net::ToSocketAddrs) -> Result<Self, BrokerError> {
-        let socket = net::UdpSocket::bind("0.0.0.0:0")?;
+        //TODO: randomize the port
+        let local_port = 49152;
+        let socket_addr = net::SocketAddr::new(
+            net::IpAddr::V4(net::Ipv4Addr::new(0, 0, 0, 0)),
+            local_port,
+        );
+
+        let socket = net::UdpSocket::bind(socket_addr)?;
         socket.connect(addr)?;
         socket.set_read_timeout(Some(READ_TIMEOUT))?;
 
