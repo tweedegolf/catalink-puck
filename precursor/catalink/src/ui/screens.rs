@@ -1,6 +1,6 @@
 use crate::ui::{Ui, UiEvent};
 
-pub mod chat;
+pub mod compose;
 pub mod contacts;
 pub mod messages;
 
