@@ -3,10 +3,11 @@ use std::fmt::Write;
 use crate::ui::UiEvent::ChangeScreen;
 use crate::ui::screens::UiScreen;
 use crate::ui::screens::contacts::Contacts;
+use crate::ui::screens::compose::Compose;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
 use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget};
-use crate::ui::{Key, Ui, UiEvent};
+use crate::ui::{Key, Ui, UiEvent, WidgetEvent};
 
 use gam::{GlyphStyle, Line, Point, TextBounds, TextView};
 
@@ -169,6 +170,10 @@ impl UiScreen for Messages {
     fn handle_event(&mut self, ui: &mut Ui, event: UiEvent) -> Result<(), xous::Error> {
         self.selector.handle_event(ui, &event)?;
         match event {
+            UiEvent::WidgetEvent(WidgetEvent::Selected(_selection)) => {
+                let compose_screen = Box::new(Compose::new(ui));
+                ui.add_event(UiEvent::ChangeScreen(compose_screen));
+            },
             UiEvent::Keys(keys) => {
                 log::info!("keys: {keys:?}");
                 if keys.is_pressed(&Key::Fn1) {
