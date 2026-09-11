@@ -29,7 +29,7 @@ pub struct Message {
 
 impl Message {
     pub fn new(ui: &mut Ui, sender: String, self_sent: bool, text: String) -> Self {
-        let width = ui.screen_size.x - OUTER_MARGIN - SEND_REC_MARGIN;
+        let width = ui.screen_size.x - OUTER_MARGIN * 2 - SEND_REC_MARGIN;
         let mut res = Self {
             text,
             time: "09/02/26 00:00".to_string(),
@@ -76,7 +76,7 @@ impl Drawable for Message {
         let mut main_text = self.main_textview(ui);
         ui.draw_line(Line::new(
             self.position + Point::new(0 + OUTER_MARGIN, LINE_HEIGHT),
-            self.position + Point::new(self.width - 3, LINE_HEIGHT),
+            self.position + Point::new(self.width, LINE_HEIGHT),
         ))?;
 
         let mut time_text = ui.new_textview(TextBounds::GrowableFromTr(
@@ -143,7 +143,7 @@ impl Messages {
                     .offset(Point { x: 0, y: -4 }),
                 BarButton::new("🗑")
                     .style(GlyphStyle::ExtraLarge)
-                    .offset(Point { x: 1, y: 0 }),
+                    .offset(Point { x: 1, y: -2 }),
                 BarButton::new("📝")
                     .style(GlyphStyle::Large)
                     .offset(Point { x: -4, y: -4 }),

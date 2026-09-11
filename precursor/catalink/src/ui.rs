@@ -1,6 +1,8 @@
 pub mod screens;
 pub mod widgets;
 
+use std::slice::Iter;
+
 use num_traits::*;
 use ux_api::minigfx::*;
 
@@ -11,7 +13,7 @@ use xous_ipc::Buffer;
 
 use crate::ui::screens::UiScreen;
 
-#[derive(Debug, num_derive::FromPrimitive, num_derive::ToPrimitive)]
+#[derive(Debug, num_derive::FromPrimitive, num_derive::ToPrimitive, Copy, Clone)]
 enum RawUiEvent {
     Redraw = 0,
     Line,
@@ -20,7 +22,7 @@ enum RawUiEvent {
     Quit,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Key {
     Char(char),
     Fn1,
@@ -59,6 +61,10 @@ impl From<usize> for Key {
 impl Keys {
     pub fn is_pressed(&self, key: &Key) -> bool {
         self.keys.contains(&key)
+    }
+
+    pub fn iter(&self) -> Iter<Key> {
+        self.keys.iter()
     }
 }
 
@@ -201,6 +207,10 @@ impl Ui {
 
     pub fn draw_circle(&self, circ: Circle) -> Result<(), xous::Error> {
         self.gam.draw_circle(self.content, circ)
+    }
+
+    pub fn raise_menu(&self, menu: &str) -> Result<(), xous::Error> {
+        self.gam.raise_menu(menu)
     }
 
     fn handle_event(

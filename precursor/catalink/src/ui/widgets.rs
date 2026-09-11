@@ -4,6 +4,7 @@ use crate::ui::{Ui, UiEvent};
 
 pub mod button_bar;
 pub mod scrolling_selector;
+pub mod text_editor;
 
 pub enum WidgetEvent {
     Selected(usize),

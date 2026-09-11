@@ -250,9 +250,9 @@ impl Contacts {
             ui,
             40,
             vec![
-                BarButton::new("☰")
+                BarButton::new("📝")
                     .style(GlyphStyle::ExtraLarge)
-                    .offset(Point { x: 0, y: 7 }),
+                    .offset(Point { x: 0, y: 0 }),
                 BarButton::new("📥")
                     .style(GlyphStyle::Large)
                     .offset(Point { x: 0, y: -4 }),
