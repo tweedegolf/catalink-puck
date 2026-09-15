@@ -23,14 +23,6 @@ Follow these steps to integrate the app into the "xous-core" repo:
 4. Add the crate to the "Cargo.toml" file in the root of the xous-core repo. It needs to be both in "default-members" and "members": `apps/catalink`.
 
 ## Running
-### Running on the precursor
-To build for the precursor run the following command in the root of the xous-core repo:
-```
-cargo xtask app-image-xip catalink
-```
-This will build an image of the kernel with the catalink app.
-To open the app you will need to press the center key of the directional pad in the center, select "Switch app" and finally select "catalink".
-
 ### Running in the simulator
 To run the app in the simulator simply run the following command:
 ```
@@ -38,6 +30,14 @@ cargo xtask run catalink
 ```
 A window should open with the precursor interface.
 To open the app you will need to press the "home" key on your keyboard, select "Switch app" and confirm with the "home" key, finally select "catalink" and confirm by pressing "home" again.
+
+### Running on the precursor
+To build for the precursor run the following command in the root of the xous-core repo:
+```
+cargo xtask app-image-xip catalink
+```
+This will build an image of the kernel with the catalink app.
+To open the app you will need to press the center key of the directional pad in the center, select "Switch app" and finally select "catalink".
 
 ### Flashing to the precursor
 
