@@ -2,7 +2,7 @@ use puckfs::{Broker, DirEntry, InMessage, OutMessage, RecvError};
 
 fn main() {
     use std::collections::VecDeque;
-    let mut broker = Broker::open("localhost:14400").unwrap();
+    let mut broker = Broker::open("localhost:14400", rand::thread_rng()).unwrap();
 
     let mut actions = VecDeque::from([
         OutMessage::hello().unwrap(),

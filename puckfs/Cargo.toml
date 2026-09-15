@@ -1,8 +1,8 @@
 [package]
 name = "puckfs"
 version = "0.1.0"
-edition.workspace = true
-rust-version.workspace = true
+edition = "2024"
+rust-version = "1.98"
 
 [dependencies]
 aead = "0.6.1"
@@ -10,11 +10,4 @@ arrayvec = { version = "0.7.8", default-features = false, features = ["std", "ze
 base64ct = { version = "1.8.3", default-features = false }
 chacha20poly1305 = { version = "0.11.0", default-features = false, features = ["arrayvec", "rand_core", "zeroize"] }
 thiserror = { version = "2.0.20", default-features = false, features = ["std"] }
-
-[target.'cfg(target_os = "xous")'.dependencies]
 rand_core = { version = "0.6.4" }
-trng = { path = "../../xous-core/services/trng" }
-xous-names = { package = "xous-api-names", version = "0.9.71" }
-
-[target.'cfg(not(target_os = "xous"))'.dependencies]
-rand = { version = "0.10.2", default-features = false, features = ["sys_rng"] }

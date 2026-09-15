@@ -1,0 +1,11 @@
+[package]
+name = "puckdemo"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+
+[dependencies]
+puckmsg = { path = "../puckmsg" }
+puckfs = { path = "../puckfs" }
+
+rand = { version = "0.8.5", default-features = false, features = ["std", "std_rng"] }

@@ -2,7 +2,7 @@
 name = "puckmsg"
 version = "0.1.0"
 edition = "2024"
-rust-version.workspace = true
+rust-version = "1.98"
 
 [dependencies]
 arrayvec = "0.7.8"
@@ -12,11 +12,4 @@ zeroize = { version = "1.9.0", features = ["zeroize_derive"] }
 aead = "0.6.1"
 chacha20poly1305 = { version = "0.11.0", default-features = false, features = ["alloc", "rand_core", "zeroize"] }
 thiserror = "2.0.20"
-
-[target.'cfg(target_os = "xous")'.dependencies]
 rand_core = { version = "0.6.4" }
-trng = { path = "../../xous-core/services/trng" }
-xous-names = { package = "xous-api-names", version = "0.9.71" }
-
-[target.'cfg(not(target_os = "xous"))'.dependencies]
-rand = { version = "0.10.2", default-features = false, features = ["sys_rng"] }

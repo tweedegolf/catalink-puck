@@ -1,7 +1,3 @@
 [workspace]
 resolver = "3"
-members = ["puckfs", "puckmsg"]
-
-[workspace.package]
-edition = "2024"
-rust-version = "1.98"
+members = ["puckfs", "puckmsg", "puckdemo"]
