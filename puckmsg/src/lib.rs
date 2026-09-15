@@ -188,9 +188,16 @@ where
     ciphertexts.collect()
 }
 
+/// A struct representing a valid message
+pub struct ValidatedMessage {
+    pub sender: String,
+    pub recipients: Vec<String>,
+    pub body: Vec<u8>,
+}
+
 /// Validate and parse a received message. If succesful, this return the nickname of the
 /// sender, the nicknames of the recipients, and the raw message contents.
-pub fn validate(blob: &[u8]) -> Result<(String, Vec<String>, Vec<u8>), ValidateError> {
+pub fn validate(blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
     let (rcpt_key_id, blob) = blob
         .split_first_chunk::<4>()
         .ok_or(ValidateError::IncompleteData)?;
@@ -276,7 +283,13 @@ pub fn validate(blob: &[u8]) -> Result<(String, Vec<String>, Vec<u8>), ValidateE
     }
 
     //TODO: this can be improved
-    Ok((sender.to_owned(), cc_list, plaintext.to_vec()))
+    let message = ValidatedMessage {
+        sender: sender.to_owned(),
+        recipients: cc_list,
+        body: plaintext.to_vec(),
+    };
+
+    Ok(message)
 }
 
 fn reverse_lookup(id: ID) -> Option<&'static str> {

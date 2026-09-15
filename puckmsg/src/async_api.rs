@@ -3,7 +3,7 @@
 //! might temporarily block.
 //! But we don't expect a full async runtime to be used on the Precursor.
 
-use super::{EnvelopeError, ValidateError};
+use super::{ValidatedMessage, EnvelopeError, ValidateError};
 use puckfs::{Broker, DirView, InMessage, OutMessage, RecvError, SendError};
 
 use std::future::Future;
@@ -139,7 +139,7 @@ pub async fn post(
 pub async fn get(
     broker: &mut Broker,
     inbox: &str,
-) -> Result<Vec<Result<(String, Vec<String>, Vec<u8>), ValidateError>>, CmdError> {
+) -> Result<Vec<Result<ValidatedMessage, ValidateError>>, CmdError> {
     let inbox = format!("{inbox}/");
 
     let entries = dir(broker, &inbox).await?;

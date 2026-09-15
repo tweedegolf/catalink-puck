@@ -1,4 +1,6 @@
 use puckfs::{Broker, DirView, InMessage, OutMessage, RecvError};
+use puckmsg::ValidatedMessage;
+
 mod blocking {
     use super::*;
     fn recv(broker: &mut Broker) -> InMessage {
@@ -69,10 +71,10 @@ mod blocking {
             let InMessage::ReadFile(contents) = recv(broker) else {
                 panic!("unexpected response")
             };
-            let (sender, cc, msg) = puckmsg::validate(&contents).unwrap();
+            let ValidatedMessage { sender, recipients, body } = puckmsg::validate(&contents).unwrap();
             println!("{sender:?}");
-            println!("{cc:?}");
-            println!("{}", String::from_utf8_lossy(&msg));
+            println!("{recipients:?}");
+            println!("{}", String::from_utf8_lossy(&body));
         }
     }
 
@@ -85,7 +87,7 @@ mod blocking {
 }
 
 mod asynchronous {
-    use puckmsg::async_api::*;
+    use puckmsg::{ValidatedMessage, async_api::*};
 
     pub async fn demo() {
         let mut broker = puckfs::Broker::open("localhost:14400").unwrap();
@@ -97,10 +99,10 @@ mod asynchronous {
             .unwrap();
 
         for entry in get(&mut broker, "gopuck").await.unwrap() {
-            let (sender, cc, msg) = entry.unwrap();
+            let ValidatedMessage { sender, recipients, body } = entry.unwrap();
             println!("{sender:?}");
-            println!("{cc:?}");
-            println!("{}", String::from_utf8_lossy(&msg));
+            println!("{recipients:?}");
+            println!("{}", String::from_utf8_lossy(&body));
         }
     }
 }
