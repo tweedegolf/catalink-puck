@@ -1,0 +1,8 @@
+{
+	"DEBUG": false,
+	"MTU": 1200,
+	"PktCnt": "client-cnt",
+	"KeyID": 54941102,
+	"Secret": "chacha20poly1305:36jOMfRiLqvQY+FsLJvVtXYeDEOn3Q2jmUozQooT6LY=",
+	"ServerAddr": "localhost:14400"
+}

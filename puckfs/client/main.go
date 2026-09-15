@@ -31,12 +31,7 @@ func main() {
 	}
 	secretfile := os.Getenv("SF")
 	if secretfile == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			log.Print("unable to get UserHomeDir, using .")
-			home = "."
-		}
-		secretfile = filepath.Join(home, ".ssh", ".puckfs")
+		secretfile = filepath.Join(".", "client.json")
 	}
 	p, err := puckfs.Dial(secretfile)
 	chk(p, err)

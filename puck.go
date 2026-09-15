@@ -858,12 +858,8 @@ func brokerOpen() {
 	if pfs != nil {
 		return
 	}
-	secretfile, err := os.UserHomeDir()
-	if err != nil {
-		log.Print("unable to get UserHomeDir, using .")
-		secretfile = "."
-	}
-	secretfile = filepath.Join(secretfile, ".ssh", ".puckfs")
+	secretfile := filepath.Join(".", "client.json")
+	var err error
 	if pfs, err = puckfs.Dial(secretfile); err != nil {
 		log.Fatalf("unable to Dial broker: %s", err)
 	}

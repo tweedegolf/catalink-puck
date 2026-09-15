@@ -1,0 +1,115 @@
+{
+ "Me": 1412638488,
+ "MLKEMsecret": null,
+ "MLKEMpubhash": "",
+ "Peers": [
+  {
+   "Id": 1446134797,
+   "Nick": "eric",
+   "Note": "",
+   "MLKEMpub": null,
+   "MLKEMdk": null,
+   "MLKEMss": null,
+   "My": {
+    "KeyID": 1667057689,
+    "KeyAlg": 2,
+    "Secret": "Ux7sv5J5zOqA4TSdbkFvqX11fl4FAhLhjmfTQ9pN3q0="
+   },
+   "Their": {
+    "KeyID": 64312123,
+    "KeyAlg": 2,
+    "Secret": "Sha0OcAPzzUSyN9iuLN8XDponCBD8A/KBp6H2LsvAss="
+   }
+  },
+  {
+   "Id": 1000017249,
+   "Nick": "usa",
+   "Note": "introduction 2026-09-15T15:46:53+02:00",
+   "MLKEMpub": null,
+   "MLKEMdk": null,
+   "MLKEMss": null,
+   "My": {
+    "KeyID": 4066866142,
+    "KeyAlg": 2,
+    "Secret": "f0xL+f6pjOVyu8DmdOC9GsRDeuBEdowfx6gOosr3efk="
+   },
+   "Their": {
+    "KeyID": 182081903,
+    "KeyAlg": 2,
+    "Secret": "4xNvF0nVH2dbTcU40/vdHvn/+8yui2+fVjVijNtNHB0="
+   }
+  },
+  {
+   "Id": 440025887,
+   "Nick": "uk",
+   "Note": "introduction 2026-09-15T15:47:18+02:00",
+   "MLKEMpub": null,
+   "MLKEMdk": null,
+   "MLKEMss": null,
+   "My": {
+    "KeyID": 3228425804,
+    "KeyAlg": 2,
+    "Secret": "AGAXKLZAKUMHjMc2TcMsnAOAqDkk0pGJQSR9A8y5+Hw="
+   },
+   "Their": {
+    "KeyID": 3532457197,
+    "KeyAlg": 2,
+    "Secret": "s3uaF8/vIoYkqkDZetaeXfzsgr/K1fQPpnhgXdizQ2I="
+   }
+  },
+  {
+   "Id": 330084672,
+   "Nick": "france",
+   "Note": "introduction 2026-09-15T15:47:35+02:00",
+   "MLKEMpub": null,
+   "MLKEMdk": null,
+   "MLKEMss": null,
+   "My": {
+    "KeyID": 992397266,
+    "KeyAlg": 2,
+    "Secret": "+9px+eplIizC7DTdN7A2S5ypqNunYixzNlNe2RVMDms="
+   },
+   "Their": {
+    "KeyID": 1401929726,
+    "KeyAlg": 2,
+    "Secret": "tb+XmdI93oTLG0bAe5KrU2uP/gfPsruylRK6tBwg/w8="
+   }
+  },
+  {
+   "Id": 860021837,
+   "Nick": "china",
+   "Note": "introduction 2026-09-15T15:47:56+02:00",
+   "MLKEMpub": null,
+   "MLKEMdk": null,
+   "MLKEMss": null,
+   "My": {
+    "KeyID": 3909709118,
+    "KeyAlg": 2,
+    "Secret": "CU/4wgIoTCV9fbV7pXDnXb82vwfGk81HBHTKGUg50XI="
+   },
+   "Their": {
+    "KeyID": 4208614404,
+    "KeyAlg": 2,
+    "Secret": "FQwnSM+WgvGcMWmDpc8/RlDn99UkBPLadAnFspWgmGY="
+   }
+  },
+  {
+   "Id": 910093479,
+   "Nick": "india",
+   "Note": "introduction 2026-09-15T15:49:24+02:00",
+   "MLKEMpub": null,
+   "MLKEMdk": null,
+   "MLKEMss": null,
+   "My": {
+    "KeyID": 995075093,
+    "KeyAlg": 2,
+    "Secret": "Pr4sE0tWNCj7wPiw3cGP8nTGDqwPfADQthBUlM9q9FA="
+   },
+   "Their": {
+    "KeyID": 1682783621,
+    "KeyAlg": 2,
+    "Secret": "9MvrYNkZElokJywsXCkW6IXX1GEduGtRBp3DeL+YG74="
+   }
+  }
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "Me": 1412638488,
+ "Peers": [
+   {
+   "Id": 1446134797,
+   "Nick": "eric",
+   "Their": {
+    "KeyID": 64312123,
+    "KeyAlg": 2,
+    "Secret": "Sha0OcAPzzUSyN9iuLN8XDponCBD8A/KBp6H2LsvAss="
+   },
+   "My": {
+    "KeyID": 1667057689,
+    "KeyAlg": 2,
+    "Secret": "Ux7sv5J5zOqA4TSdbkFvqX11fl4FAhLhjmfTQ9pN3q0="
+   }
+  }
+ ]
+}
