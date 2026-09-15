@@ -211,7 +211,7 @@ impl<R: rand_core::RngCore> Broker<R> {
 
     /// Generate a nonce.
     ///
-    /// Should only be used once.
+    /// The returned value should only be used once.
     pub fn nonce(&self) -> chacha20poly1305::XNonce {
         let mut nonce = chacha20poly1305::XNonce::default();
         self.rng
