@@ -8,6 +8,7 @@ In order to build it it needs to be symlinked or copied into the apps folder of 
 Follow these steps to integrate the app into the "xous-core" repo:
 1. Clone the xous-core repo: [xous-core](https://github.com/betrusted-io/xous-core).
 2. Copy or symlink the "catalink" folder into the "apps" folder of xous-core.
+2. Copy or symlink the "puckmsg" and "puckfs" folder into the "services" folder of xous-core.
 3. Add an entry for the app to the "manifest.json" file in the "apps" directory:
 ```json
 "catalink": {
@@ -20,7 +21,7 @@ Follow these steps to integrate the app into the "xous-core" repo:
         }
     }
 ```
-4. Add the crate to the "Cargo.toml" file in the root of the xous-core repo. It needs to be both in "default-members" and "members": `apps/catalink`.
+4. Add the crates to the "Cargo.toml" file in the root of the xous-core repo. It needs to be both in "default-members" and "members": `apps/catalink`, and in "members": `services/puckmsg` and `services/puckfs`.
 
 ## Running
 ### Running in the simulator
