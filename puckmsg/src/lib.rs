@@ -1,3 +1,5 @@
+use std::time::{Duration, SystemTime, SystemTimeError, UNIX_EPOCH};
+
 pub mod async_api;
 
 /// A newtype representing the ID of a Principal
@@ -66,7 +68,7 @@ impl TryFrom<[u8; 4]> for MsgType {
 #[derive(Debug)]
 pub enum EnvelopeError {
     TooManyRecipients(usize),
-    Time(std::time::SystemTimeError),
+    Time(SystemTimeError),
     TooLarge,
     UnknownNick(String),
     Crypto(aead::Error),
@@ -107,8 +109,6 @@ fn generic_envelope<Iter>(
 where
     Iter: IntoIterator<Item: AsRef<str>>,
 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     let now: u64 = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(EnvelopeError::Time)?
@@ -193,6 +193,7 @@ pub struct ValidatedMessage {
     pub sender: String,
     pub recipients: Vec<String>,
     pub body: Vec<u8>,
+    pub time: SystemTime,
 }
 
 /// Validate and parse a received message. If succesful, this return the nickname of the
@@ -248,7 +249,9 @@ pub fn validate(blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
     //TODO: do something with the unused parts
     let _version: [u8; 4] = *version;
     let _msgtype: Option<MsgType> = (*msgtype).try_into().ok();
-    let _timestamp = u64::from_be_bytes(*timestamp);
+    let timestamp = u64::from_be_bytes(*timestamp);
+
+    let time = UNIX_EPOCH + Duration::from_secs(timestamp);
     let sender = ID(u32::from_be_bytes(*sender));
 
     let true_origin = origin.id;
@@ -287,6 +290,7 @@ pub fn validate(blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
         sender: sender.to_owned(),
         recipients: cc_list,
         body: plaintext.to_vec(),
+        time,
     };
 
     Ok(message)

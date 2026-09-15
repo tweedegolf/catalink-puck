@@ -3,7 +3,7 @@
 //! might temporarily block.
 //! But we don't expect a full async runtime to be used on the Precursor.
 
-use super::{ValidatedMessage, EnvelopeError, ValidateError};
+use super::{EnvelopeError, ValidateError, ValidatedMessage};
 use puckfs::{Broker, DirView, InMessage, OutMessage, RecvError, SendError};
 
 use std::future::Future;

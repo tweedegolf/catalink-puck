@@ -71,9 +71,15 @@ mod blocking {
             let InMessage::ReadFile(contents) = recv(broker) else {
                 panic!("unexpected response")
             };
-            let ValidatedMessage { sender, recipients, body } = puckmsg::validate(&contents).unwrap();
+            let ValidatedMessage {
+                sender,
+                recipients,
+                body,
+                time,
+            } = puckmsg::validate(&contents).unwrap();
             println!("{sender:?}");
             println!("{recipients:?}");
+            println!("{time:?}");
             println!("{}", String::from_utf8_lossy(&body));
         }
     }
@@ -99,9 +105,15 @@ mod asynchronous {
             .unwrap();
 
         for entry in get(&mut broker, "gopuck").await.unwrap() {
-            let ValidatedMessage { sender, recipients, body } = entry.unwrap();
+            let ValidatedMessage {
+                sender,
+                recipients,
+                body,
+                time,
+            } = entry.unwrap();
             println!("{sender:?}");
             println!("{recipients:?}");
+            println!("{time:?}");
             println!("{}", String::from_utf8_lossy(&body));
         }
     }
