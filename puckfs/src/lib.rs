@@ -190,10 +190,8 @@ impl Broker {
     pub fn open(addr: impl net::ToSocketAddrs) -> Result<Self, BrokerError> {
         //TODO: randomize the port
         let local_port = 49152;
-        let socket_addr = net::SocketAddr::new(
-            net::IpAddr::V4(net::Ipv4Addr::new(0, 0, 0, 0)),
-            local_port,
-        );
+        let socket_addr =
+            net::SocketAddr::new(net::IpAddr::V4(net::Ipv4Addr::new(0, 0, 0, 0)), local_port);
 
         let socket = net::UdpSocket::bind(socket_addr)?;
         socket.connect(addr)?;
