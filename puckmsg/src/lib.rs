@@ -93,11 +93,12 @@ pub fn envelope<Iter>(
     sender: &str,
     recipients: Iter,
     content: &str,
+    nonce: chacha20poly1305::XNonce,
 ) -> Result<Vec<Vec<u8>>, EnvelopeError>
 where
     Iter: IntoIterator<Item: AsRef<str>>,
 {
-    generic_envelope(sender, recipients, content, MsgType::Plain)
+    generic_envelope(sender, recipients, content, MsgType::Plain, nonce)
 }
 
 fn generic_envelope<Iter>(
@@ -105,6 +106,7 @@ fn generic_envelope<Iter>(
     recipients: Iter,
     content: &str,
     msg_type: MsgType,
+    nonce: chacha20poly1305::XNonce,
 ) -> Result<Vec<Vec<u8>>, EnvelopeError>
 where
     Iter: IntoIterator<Item: AsRef<str>>,
@@ -150,29 +152,15 @@ where
 
     let ciphertexts = recipients.into_iter().map(move |rcpt| {
         use chacha20poly1305::{
-            KeyInit, XChaCha20Poly1305, XNonce,
+            KeyInit, XChaCha20Poly1305,
             aead::{Aead, Payload},
         };
-
-        #[cfg(not(target_os = "xous"))]
-        use rand::TryRng;
-        #[cfg(target_os = "xous")]
-        use rand_core::RngCore;
-
-        #[cfg(target_os = "xous")]
-        let mut rng = trng::Trng::new(&xous_names::XousNames::new().expect("to get a xous handle"))
-            .expect("to have a rng");
-        #[cfg(not(target_os = "xous"))]
-        let mut rng = rand::rngs::SysRng;
 
         let cipher = XChaCha20Poly1305::new(
             (&*rcpt.our.secret)
                 .try_into()
                 .map_err(|_| EnvelopeError::KeyError(rcpt.our.id))?,
         );
-        let mut nonce = XNonce::default();
-        rng.try_fill_bytes(&mut nonce)
-            .expect("to have ample random bytes");
 
         let aad = &rcpt.our.id.0.to_be_bytes();
         let mut ciphertext = cipher

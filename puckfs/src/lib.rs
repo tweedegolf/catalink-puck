@@ -1,13 +1,8 @@
-use std::{io, net, time::Duration};
+use std::{cell::RefCell, io, net, time::Duration};
 
 use thiserror::Error;
 
 mod ringbuf;
-
-#[cfg(not(target_os = "xous"))]
-use rand::TryRng;
-#[cfg(target_os = "xous")]
-use rand_core::RngCore;
 
 macro_rules! debug_println {
     ($($x: expr),*) => {
@@ -176,18 +171,19 @@ pub type MsgBuffer = arrayvec::ArrayVec<u8, MAX_MESSAGE_SIZE>;
 
 /// An object represents the connection to a remote puckfs broker.
 #[allow(non_snake_case)]
-pub struct Broker {
+pub struct Broker<R> {
     socket: net::UdpSocket,
     MTU: usize,
     key_id: u32,
     key: SecretKey,
     send: ringbuf::Buffer<UdpBuffer, RINGBUF_ENTRIES>,
     recv: ringbuf::Buffer<(PacketType, UdpBuffer), RINGBUF_ENTRIES>,
+    rng: RefCell<R>,
 }
 
-impl Broker {
+impl<R: rand_core::RngCore> Broker<R> {
     /// Open a new connection to a puckfs broker.
-    pub fn open(addr: impl net::ToSocketAddrs) -> Result<Self, BrokerError> {
+    pub fn open(addr: impl net::ToSocketAddrs, rng: R) -> Result<Self, BrokerError> {
         //TODO: randomize the port
         let local_port = 49152;
         let socket_addr =
@@ -209,7 +205,20 @@ impl Broker {
             send: ringbuf::Buffer::new(0),
             recv: ringbuf::Buffer::new(0),
             key,
+            rng: RefCell::new(rng),
         })
+    }
+
+    /// Generate a nonce.
+    ///
+    /// Should only be used once.
+    pub fn nonce(&self) -> chacha20poly1305::XNonce {
+        let mut nonce = chacha20poly1305::XNonce::default();
+        self.rng
+            .borrow_mut()
+            .try_fill_bytes(&mut nonce)
+            .expect("to have ample random bytes");
+        nonce
     }
 
     fn serialize<'a>(&self, mut cmd: PacketType, msg: &'a [u8]) -> (UdpBuffer, &'a [u8]) {
@@ -242,21 +251,13 @@ impl Broker {
         ad[4..8].copy_from_slice(&seqno.to_be_bytes());
 
         use chacha20poly1305::{
-            XChaCha20Poly1305, XNonce,
+            XChaCha20Poly1305,
             aead::{AeadInOut, KeyInit},
         };
 
-        #[cfg(target_os = "xous")]
-        let mut rng = trng::Trng::new(&xous_names::XousNames::new().expect("to get a xous handle"))
-            .expect("to have a rng");
-        #[cfg(not(target_os = "xous"))]
-        let mut rng = rand::rngs::SysRng;
+        let nonce = self.nonce();
 
         let cipher = XChaCha20Poly1305::new(&self.key);
-        let mut nonce = XNonce::default();
-        rng.try_fill_bytes(&mut nonce)
-            .expect("to have ample random bytes");
-
         cipher.encrypt_in_place(&nonce, &ad, &mut plaintext)?;
         let ciphertext = plaintext;
 
