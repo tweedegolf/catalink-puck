@@ -17,7 +17,11 @@ locales = { path = "../../locales" }
 tts-frontend = { path = "../../services/tts" }
 ime-plugin-shell = { path = "../../services/ime-plugin-shell" }
 blitstr2 = { path = "../../libs/blitstr2"}
+pddb = { path = "../../services/pddb" }
+puckmsg = { path = "../../services/puckmsg" }
 thiserror = "2.0.20"
+postcard = { version = "1.1.3", features = ["use-std"] }
+serde = "1.0"
 
 rkyv = { version = "0.8.8", default-features = false, features = [
     "std",
