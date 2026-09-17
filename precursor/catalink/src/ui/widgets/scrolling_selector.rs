@@ -9,14 +9,14 @@ use crate::ui::{
 pub trait Scrollable: Widget + Drawable + Selectable + PositionAble {}
 impl<W> Scrollable for W where W: Widget + Drawable + Selectable + PositionAble {}
 
-pub struct ScrollingSelector {
-    widgets: Vec<Box<dyn Scrollable>>,
+pub struct ScrollingSelector<T: Scrollable> {
+    widgets: Vec<T>,
     selected: Option<usize>,
     scroll_offset: isize,
     height: isize,
 }
 
-impl ScrollingSelector {
+impl<T: Scrollable> ScrollingSelector<T> {
     pub fn new(height: isize) -> Self {
         Self {
             widgets: Vec::new(),
@@ -26,8 +26,8 @@ impl ScrollingSelector {
         }
     }
 
-    pub fn add<W: Scrollable + 'static>(&mut self, widget: W) {
-        self.widgets.push(Box::new(widget));
+    pub fn add(&mut self, widget: T) {
+        self.widgets.push(widget);
     }
 
     pub fn set_selection(&mut self, selection: usize) {
@@ -83,7 +83,7 @@ impl ScrollingSelector {
     }
 }
 
-impl Widget for ScrollingSelector {
+impl<T: Scrollable> Widget for ScrollingSelector<T> {
     fn handle_event(&mut self, ui: &mut Ui, event: &UiEvent) -> Result<(), xous::Error> {
         let mut change = false;
         match event {
@@ -125,7 +125,7 @@ impl Widget for ScrollingSelector {
     }
 }
 
-impl Drawable for ScrollingSelector {
+impl<T: Scrollable> Drawable for ScrollingSelector<T> {
     fn redraw(&mut self, ui: &mut Ui) -> Result<(), xous::Error> {
         let mut offset = 0;
         for widget in self.widgets.iter_mut() {

@@ -2,8 +2,8 @@ use std::fmt::Write;
 
 use crate::ui::UiEvent::ChangeScreen;
 use crate::ui::screens::UiScreen;
-use crate::ui::screens::contacts::Contacts;
 use crate::ui::screens::compose::Compose;
+use crate::ui::screens::contacts::Contacts;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
 use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget};
@@ -116,7 +116,7 @@ impl Selectable for Message {
 impl Widget for Message {}
 
 pub struct Messages {
-    selector: ScrollingSelector,
+    selector: ScrollingSelector<Message>,
     button_bar: ButtonBar,
 }
 
@@ -173,7 +173,7 @@ impl UiScreen for Messages {
             UiEvent::WidgetEvent(WidgetEvent::Selected(_selection)) => {
                 let compose_screen = Box::new(Compose::new(ui));
                 ui.add_event(UiEvent::ChangeScreen(compose_screen));
-            },
+            }
             UiEvent::Keys(keys) => {
                 log::info!("keys: {keys:?}");
                 if keys.is_pressed(&Key::Fn1) {

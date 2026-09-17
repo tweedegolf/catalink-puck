@@ -143,7 +143,7 @@ impl Selectable for Contact {
 impl Widget for Contact {}
 
 pub struct Contacts {
-    selector: ScrollingSelector,
+    selector: ScrollingSelector<Contact>,
     button_bar: ButtonBar,
 }
 
