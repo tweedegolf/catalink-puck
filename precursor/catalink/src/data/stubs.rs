@@ -1,5 +1,5 @@
+use chrono::Utc;
 use core::time::Duration;
-use std::time::SystemTime;
 
 use puckmsg::ValidatedMessage;
 
@@ -23,33 +23,36 @@ fn contact_russia() -> Contact {
     }
 }
 
+fn contact_france() -> Contact {
+    Contact {
+        name: "France".to_string(),
+    }
+}
+
+fn contact_uk() -> Contact {
+    Contact {
+        name: "United Kingdom".to_string(),
+    }
+}
+
+fn contact_india() -> Contact {
+    Contact {
+        name: "India".to_string(),
+    }
+}
+
 pub fn contacts() -> Vec<Contact> {
     vec![
-        contact_usa(),
         contact_china(),
+        contact_france(),
+        contact_india(),
         contact_russia(),
-        Contact {
-            name: "France".to_string(),
-        },
-        Contact {
-            name: "United Kingdom".to_string(),
-        },
-        Contact {
-            name: "India".to_string(),
-        },
-        Contact {
-            name: "Jeremy".to_string(),
-        },
-        Contact {
-            name: "Susan".to_string(),
-        },
-        Contact {
-            name: "Susan2".to_string(),
-        },
-        Contact {
-            name: "Jeremy3".to_string(),
-        },
+        contact_usa(),
     ]
+}
+
+pub fn our_contact() -> Contact {
+    contact_uk()
 }
 
 fn lipsum() -> Vec<u8> {
@@ -59,14 +62,17 @@ fn lipsum() -> Vec<u8> {
 
 pub fn messages() -> Vec<ValidatedMessage> {
     let protos = [
-        (contact_usa(), vec![contact_russia(), contact_china()]),
-        (contact_usa(), vec![contact_russia(), contact_china()]),
-        (contact_usa(), vec![contact_russia(), contact_china()]),
-        (contact_russia(), vec![contact_china(), contact_usa()]),
-        (contact_usa(), vec![contact_russia(), contact_china()]),
+        (contact_uk(), vec![contact_russia(), contact_china()]),
+        (contact_uk(), vec![contact_russia(), contact_china()]),
+        (contact_uk(), vec![contact_russia(), contact_china()]),
+        (
+            contact_russia(),
+            vec![contact_uk(), contact_china(), contact_usa()],
+        ),
+        (contact_uk(), vec![contact_russia(), contact_china()]),
     ];
 
-    let now = SystemTime::now();
+    let now = Utc::now();
 
     protos
         .into_iter()
@@ -78,7 +84,7 @@ pub fn messages() -> Vec<ValidatedMessage> {
                 .map(|recipient| recipient.name)
                 .collect(),
             body: lipsum(),
-            time: now.checked_add(Duration::from_hours(i as u64)).unwrap(),
+            time: now + Duration::from_hours(i as u64),
         })
         .collect()
 }

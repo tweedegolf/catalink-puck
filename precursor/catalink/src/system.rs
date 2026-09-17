@@ -1,4 +1,4 @@
-use std::collections::btree_set::BTreeSet;
+use std::{collections::btree_set::BTreeSet, io::Write};
 
 use crate::data;
 
@@ -54,8 +54,7 @@ impl System {
         &mut self,
         dict_name: &str,
     ) -> Result<impl Iterator<Item = Result<T, xous::Error>>, xous::Error> {
-        // Note: size_limit at Some(0) to disable loading the actual contents of each record as to limit the amount of memory required.
-        let mut entries = match self.pddb.read_dict(dict_name, None, Some(0)) {
+        let mut entries = match self.pddb.read_dict(dict_name, None, None) {
             Ok(entries) => entries,
 
             // Dict was not defined, hence we have no messages stored.
@@ -67,7 +66,8 @@ impl System {
 
         entries.sort_by_cached_key(|entry| entry.name.clone());
 
-        Ok(entries.into_iter().map(|entry| {
+        Ok(entries.into_iter().map(move |entry| {
+            log::info!("Found entry: {}:{}", dict_name, entry.name);
             let mut dict_key = self
                 .pddb
                 .get(
@@ -76,7 +76,7 @@ impl System {
                     Some(&entry.basis),
                     false,
                     false,
-                    Some(entry.len),
+                    Some(64),
                     None::<fn()>,
                 )
                 .map_err(|_| xous::Error::StorageError)?;
@@ -95,13 +95,13 @@ impl System {
         key_name: &str,
         item: &T,
     ) -> Result<(), xous::Error> {
-        let entry = self
+        let mut entry = self
             .pddb
             .get(dict_name, key_name, None, true, true, None, None::<fn()>)
             .map_err(|_| xous::Error::StorageError)?;
 
-        postcard::to_io(item, entry).map_err(|_| xous::Error::SerializationError)?;
-
+        postcard::to_io(item, &mut entry).map_err(|_| xous::Error::SerializationError)?;
+        log::info!("Inserted {}:{}", dict_name, key_name);
         Ok(())
     }
 

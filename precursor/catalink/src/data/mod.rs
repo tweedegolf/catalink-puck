@@ -2,6 +2,9 @@
 
 pub mod stubs;
 
+use std::time::SystemTime;
+
+use chrono::DateTime;
 use puckmsg::ValidatedMessage;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +24,11 @@ impl Message {
     ///
     /// The key is also used to alphanumerically sort the entire set of messages.
     pub fn key(&self) -> String {
-        format!("{:?}-{}", self.inner.time, self.inner.sender)
+        let timestamp = self
+            .inner
+            .time
+            .signed_duration_since(DateTime::UNIX_EPOCH)
+            .num_seconds();
+        format!("{}-{}", timestamp, self.inner.sender)
     }
 }
