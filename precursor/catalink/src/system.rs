@@ -1,6 +1,11 @@
-use std::{collections::btree_set::BTreeSet, io::Write};
+use std::{
+    collections::{btree_map::BTreeMap, btree_set::BTreeSet},
+    io::Write,
+};
 
-use crate::data;
+use chrono::{DateTime, Utc};
+
+use crate::data::{self, Contact};
 
 const CONTACTS_DICT_NAME: &'static str = "CATALINK_CONTACTS";
 const MESSAGES_DICT_NAME: &'static str = "CATALINK_MESSAGES";
@@ -125,5 +130,60 @@ impl System {
 
     pub fn add_contact(&mut self, contact: &data::Contact) -> Result<(), xous::Error> {
         self.add_entry(CONTACTS_DICT_NAME, &contact.name, contact)
+    }
+
+    pub fn our_contact(&self) -> Contact {
+        data::stubs::our_contact()
+    }
+}
+
+#[derive(Default)]
+pub struct ContactState {
+    pub last_message: Option<data::Message>,
+    pub unread_count: usize,
+}
+
+impl System {
+    pub fn derive_contact_state(&mut self) -> Result<BTreeMap<Contact, ContactState>, xous::Error> {
+        let mut contact_state: BTreeMap<Contact, ContactState> = BTreeMap::new();
+
+        for contact in self.get_contacts()? {
+            if let Ok(contact) = contact {
+                contact_state.insert(contact, ContactState::default());
+            }
+        }
+
+        let our_contact = self.our_contact();
+        for message in self.get_messages()? {
+            if let Ok(message) = message {
+                let related_contacts = message
+                    .inner
+                    .recipients
+                    .iter()
+                    .chain(std::iter::once(&message.inner.sender));
+
+                for contact in related_contacts {
+                    let contact = Contact {
+                        name: contact.clone(),
+                    };
+                    if let Some(contact_state) = contact_state.get_mut(&contact) {
+                        if !message.read {
+                            contact_state.unread_count += 1;
+                        }
+
+                        // When current message is the last for this particular contact (or the only one)
+                        if contact_state
+                            .last_message
+                            .as_ref()
+                            .is_none_or(|last_message| last_message.inner.time < message.inner.time)
+                        {
+                            contact_state.last_message = Some(message.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(contact_state)
     }
 }

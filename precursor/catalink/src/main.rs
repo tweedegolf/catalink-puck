@@ -23,13 +23,7 @@ fn main() -> ! {
         .register_name(SERVER_NAME_CATALINK, None)
         .expect("can't register server");
 
-    let mut system = System::new();
-    let res = system.get_messages().unwrap();
-
-    let messages: Vec<_> = res.collect();
-    log::info!("{:?}", messages);
-
-    let mut ui = Ui::new(&xns, sid);
+    let mut ui = Ui::new(&xns, sid, System::new());
 
     let starting_screen = Box::new(crate::ui::screens::contacts::Contacts::new(&mut ui));
     ui.run(starting_screen);

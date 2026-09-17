@@ -1,5 +1,6 @@
 use std::fmt::Write;
 
+use crate::data;
 use crate::ui::screens::UiScreen;
 use crate::ui::screens::messages::Messages;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
@@ -13,12 +14,12 @@ const OUTER_MARGIN: isize = 2;
 const INNER_MARGIN: isize = 5;
 const HEIGHT: isize = 60;
 
+const MAX_PREVIEW_BODY_LEN: usize = 30;
+
 #[derive(Debug)]
 pub struct Contact {
     pub name: String,
-    pub last_message: String,
-    pub last_message_time: String,
-    pub self_sent: bool,
+    pub last_message: Option<data::Message>,
     pub unread_count: usize,
     width: isize,
     selected: bool,
@@ -65,14 +66,6 @@ impl Drawable for Contact {
         last_message.draw_border = false;
         last_message.style = GlyphStyle::Regular;
         last_message.clear_area = false;
-        write!(
-            last_message.text,
-            "{}{}",
-            if self.self_sent { "↖" } else { "↘" },
-            self.last_message.clone()
-        )
-        .unwrap();
-        ui.post_textview(&mut last_message)?;
 
         let mut time = ui.new_textview(TextBounds::GrowableFromTr(
             self.position
@@ -85,7 +78,29 @@ impl Drawable for Contact {
         time.draw_border = false;
         time.style = GlyphStyle::Regular;
         time.clear_area = false;
-        time.text = self.last_message_time.clone();
+
+        if let Some(_last_message) = &self.last_message {
+            let mut body = _last_message.body().to_string();
+            // TODO more robust overflow detection?
+            if body.len() > MAX_PREVIEW_BODY_LEN {
+                body = format!("{}...", &body[0..MAX_PREVIEW_BODY_LEN - 3]);
+            }
+
+            write!(
+                last_message.text,
+                "{}{}",
+                if _last_message.inner.sender == ui.system.our_contact().name {
+                    "↖"
+                } else {
+                    "↘"
+                },
+                body
+            )
+            .unwrap();
+            time.text = _last_message.time_str();
+        }
+
+        ui.post_textview(&mut last_message)?;
         ui.post_textview(&mut time)?;
 
         if self.unread_count > 0 {
@@ -135,115 +150,22 @@ pub struct Contacts {
 impl Contacts {
     pub fn new(ui: &mut Ui) -> Contacts {
         let mut selector = ScrollingSelector::new(ui.screen_size.y - 40);
-        selector.add(Contact {
-            name: "United States".to_string(),
-            last_message: "Hi".to_string(),
-            last_message_time: "09/02/26 00:00".to_string(),
-            self_sent: false,
-            unread_count: 5,
-            selected: false,
-            position: Point { x: 0, y: 0 },
-            width: ui.screen_size.x,
-        });
 
-        selector.add(Contact {
-            selected: true,
-            name: "China".to_string(),
-            position: Point { x: 0, y: 60 },
-            last_message: "嗨".to_string(),
-            last_message_time: "09/02/26 00:00".to_string(),
-            self_sent: true,
-            unread_count: 0,
-            width: ui.screen_size.x,
-        });
-
-        selector.add(Contact {
-            selected: false,
-            name: "Russia".to_string(),
-            position: Point { x: 0, y: 120 },
-            last_message: "Привет".to_string(),
-            last_message_time: "09/02/26 00:00".to_string(),
-            self_sent: false,
-            unread_count: 3,
-            width: ui.screen_size.x,
-        });
-
-        selector.add(Contact {
-            selected: false,
-            name: "France".to_string(),
-            position: Point { x: 0, y: 180 },
-            last_message: "Bonjour".to_string(),
-            last_message_time: "09/02/26 00:00".to_string(),
-            self_sent: false,
-            unread_count: 3,
-            width: ui.screen_size.x,
-        });
-
-        selector.add(Contact {
-            selected: false,
-            name: "United Kingdom".to_string(),
-            position: Point { x: 0, y: 240 },
-            last_message: "Hi".to_string(),
-            last_message_time: "09/02/26 00:00".to_string(),
-            self_sent: false,
-            unread_count: 0,
-            width: ui.screen_size.x,
-        });
-
-        selector.add(Contact {
-            selected: false,
-            name: "India".to_string(),
-            position: Point { x: 0, y: 300 },
-            last_message: "नमस्ते".to_string(),
-            last_message_time: "09/02/26 00:00".to_string(),
-            self_sent: false,
-            unread_count: 0,
-            width: ui.screen_size.x,
-        });
-
-        selector.add(Contact {
-            selected: false,
-            name: "Jeremy".to_string(),
-            position: Point { x: 0, y: 360 },
-            last_message: "Hello there".to_string(),
-            last_message_time: "09/02/26 00:00".to_string(),
-            self_sent: false,
-            unread_count: 0,
-            width: ui.screen_size.x,
-        });
-
-        selector.add(Contact {
-            selected: false,
-            name: "Susan".to_string(),
-            position: Point { x: 0, y: 420 },
-            last_message: "Hiii 😻".to_string(),
-            last_message_time: "09/02/26 00:00".to_string(),
-            self_sent: false,
-            unread_count: 0,
-            width: ui.screen_size.x,
-        });
-
-        selector.add(Contact {
-            selected: false,
-            name: "Susan2".to_string(),
-            position: Point { x: 0, y: 480 },
-            last_message: "Hiii! 😻".to_string(),
-            last_message_time: "09/02/26 00:00".to_string(),
-            self_sent: false,
-            unread_count: 0,
-            width: ui.screen_size.x,
-        });
-
-        selector.add(Contact {
-            selected: false,
-            name: "Jeremy3".to_string(),
-            position: Point { x: 0, y: 540 },
-            last_message: "Hello thar".to_string(),
-            last_message_time: "09/02/26 00:00".to_string(),
-            self_sent: false,
-            unread_count: 0,
-            width: ui.screen_size.x,
-        });
+        const CURSOR_Y_OFFSET: isize = 60;
+        let contacts = ui.system.derive_contact_state().unwrap();
+        for (contact_i, (contact, state)) in contacts.into_iter().enumerate() {
+            selector.add(Contact {
+                name: contact.name,
+                last_message: state.last_message,
+                unread_count: state.unread_count,
+                selected: false,
+                position: Point {
+                    x: 0,
+                    y: contact_i as isize * CURSOR_Y_OFFSET,
+                },
+                width: ui.screen_size.x,
+            });
+        }
         selector.update();
 
         let button_bar = ButtonBar::new(
