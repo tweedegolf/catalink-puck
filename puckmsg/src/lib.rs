@@ -175,7 +175,7 @@ where
 }
 
 /// A struct representing a valid message
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidatedMessage {
     pub sender: String,
     pub recipients: Vec<String>,
