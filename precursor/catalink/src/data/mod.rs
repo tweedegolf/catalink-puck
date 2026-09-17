@@ -43,4 +43,20 @@ impl Message {
     pub fn time_str(&self) -> String {
         self.inner.time.format("%d/%m/%y %H:%M").to_string()
     }
+
+    /// All the [Contact]s that are relevant to this [Message].
+    pub fn relevant_contacts(&self) -> impl Iterator<Item = Contact> {
+        self.inner
+            .recipients
+            .iter()
+            .chain(std::iter::once(&self.inner.sender))
+            .map(|name| Contact { name: name.clone() })
+    }
+
+    /// If the [Contact] either sent or received the [Message].
+    pub fn is_relevant_to(&self, contact: &Contact) -> bool {
+        self.relevant_contacts()
+            .find(|other| other == contact)
+            .is_some()
+    }
 }

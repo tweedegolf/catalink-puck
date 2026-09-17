@@ -81,6 +81,10 @@ impl<T: Scrollable> ScrollingSelector<T> {
             offset += widget.get_size().y;
         }
     }
+
+    pub fn get(&self, i: usize) -> Option<&T> {
+        self.widgets.get(i)
+    }
 }
 
 impl<T: Scrollable> Widget for ScrollingSelector<T> {

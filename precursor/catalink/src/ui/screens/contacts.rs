@@ -206,8 +206,9 @@ impl UiScreen for Contacts {
     fn handle_event(&mut self, ui: &mut Ui, event: UiEvent) -> Result<(), xous::Error> {
         self.selector.handle_event(ui, &event)?;
         match event {
-            UiEvent::WidgetEvent(WidgetEvent::Selected(_selection)) => {
-                let messages_screen = Box::new(Messages::new(ui));
+            UiEvent::WidgetEvent(WidgetEvent::Selected(selection)) => {
+                let contact = self.selector.get(selection).unwrap();
+                let messages_screen = Box::new(Messages::new(ui, contact.inner.clone()));
                 ui.add_event(UiEvent::ChangeScreen(messages_screen));
             }
             _ => (),

@@ -152,16 +152,7 @@ impl System {
 
         for message in self.get_messages()? {
             if let Ok(message) = message {
-                let related_contacts = message
-                    .inner
-                    .recipients
-                    .iter()
-                    .chain(std::iter::once(&message.inner.sender));
-
-                for contact in related_contacts {
-                    let contact = data::Contact {
-                        name: contact.clone(),
-                    };
+                for contact in message.relevant_contacts() {
                     if let Some(contact_state) = contact_state.get_mut(&contact) {
                         if !message.read {
                             contact_state.unread_count += 1;

@@ -1,5 +1,6 @@
 use std::fmt::Write;
 
+use crate::data;
 use crate::ui::UiEvent::ChangeScreen;
 use crate::ui::screens::UiScreen;
 use crate::ui::screens::compose::Compose;
@@ -18,10 +19,8 @@ const LINE_HEIGHT: isize = 23;
 
 #[derive(Debug)]
 pub struct Message {
-    text: String,
-    time: String,
+    inner: data::Message,
     self_sent: bool,
-    sender: String,
     size: Point,
     selected: bool,
     position: Point,
@@ -29,17 +28,16 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn new(ui: &mut Ui, sender: String, self_sent: bool, text: String) -> Self {
+    pub fn new(ui: &mut Ui, inner: data::Message) -> Self {
         let width = ui.screen_size.x - OUTER_MARGIN * 2 - SEND_REC_MARGIN;
+        let self_sent = inner.inner.sender == ui.system.our_contact().name;
         let mut res = Self {
-            text,
-            time: "09/02/26 00:00".to_string(),
-            self_sent,
-            sender,
+            inner,
             size: Point { x: width, y: 0 },
             selected: false,
             position: Point { x: 0, y: 0 },
             width,
+            self_sent,
         };
 
         let mut main_text = res.main_textview(ui);
@@ -64,8 +62,8 @@ impl Message {
             main_text.text,
             "{}{}\n\n{}",
             if self.self_sent { "↖" } else { "↘" },
-            self.sender,
-            self.text
+            self.inner.inner.sender,
+            self.inner.body()
         )
         .expect("Failed to write text");
         main_text
@@ -85,7 +83,7 @@ impl Drawable for Message {
             100,
         ));
         time_text.clear_area = false;
-        time_text.text = self.time.clone();
+        time_text.text = self.inner.time_str();
         time_text.draw_border = false;
         ui.post_textview(&mut time_text)?;
 
@@ -121,14 +119,20 @@ pub struct Messages {
 }
 
 impl Messages {
-    pub fn new(ui: &mut Ui) -> Self {
+    pub fn new(ui: &mut Ui, contact: data::Contact) -> Self {
         let mut selector = ScrollingSelector::new(ui.screen_size.y - 40);
-        selector.add(Message::new(ui, "United States".to_string(), false, "Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.".to_string()));
-        selector.add(Message::new(ui, "Me".to_string(),true, "Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.".to_string() ));
-        selector.add(Message::new(ui, "Me".to_string(),true, "Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.".to_string() ));
-        selector.add(Message::new(ui, "United States".to_string(), false, "Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.".to_string()));
-        selector.add(Message::new(ui, "Me".to_string(),true, "Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.".to_string() ));
-        selector.add(Message::new(ui, "Me".to_string(),true, "Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.".to_string() ));
+        let messages: Vec<_> = ui
+            .system
+            .get_messages()
+            .unwrap()
+            .filter_map(|message| message.ok())
+            .filter(|message| message.is_relevant_to(&contact))
+            .collect();
+
+        for message in messages {
+            selector.add(Message::new(ui, message));
+        }
+
         selector.set_selection(selector.len() - 1);
         selector.update();
 
