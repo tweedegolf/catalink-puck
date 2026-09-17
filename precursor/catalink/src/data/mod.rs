@@ -2,8 +2,6 @@
 
 pub mod stubs;
 
-use std::time::SystemTime;
-
 use chrono::DateTime;
 use puckmsg::ValidatedMessage;
 use serde::{Deserialize, Serialize};
