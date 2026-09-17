@@ -18,7 +18,7 @@ const MAX_PREVIEW_BODY_LEN: usize = 30;
 
 #[derive(Debug)]
 pub struct Contact {
-    pub name: String,
+    pub inner: data::Contact,
     pub last_message: Option<data::Message>,
     pub unread_count: usize,
     width: isize,
@@ -56,7 +56,7 @@ impl Drawable for Contact {
         name.draw_border = false;
         name.clear_area = false;
         name.style = GlyphStyle::Large;
-        name.text = self.name.clone();
+        name.text = self.inner.name.clone();
         ui.post_textview(&mut name)?;
 
         let mut last_message = ui.new_textview(TextBounds::GrowableFromBl(
@@ -155,7 +155,7 @@ impl Contacts {
         let contacts = ui.system.derive_contact_state().unwrap();
         for (contact_i, (contact, state)) in contacts.into_iter().enumerate() {
             selector.add(Contact {
-                name: contact.name,
+                inner: contact,
                 last_message: state.last_message,
                 unread_count: state.unread_count,
                 selected: false,
