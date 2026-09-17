@@ -26,10 +26,12 @@ impl<T: Scrollable> ScrollingSelector<T> {
         }
     }
 
+    /// Add a widget.
     pub fn add(&mut self, widget: T) {
         self.widgets.push(widget);
     }
 
+    /// Set the current active selected widget.
     pub fn set_selection(&mut self, selection: usize) {
         if self.widgets.is_empty() {
             return;
@@ -82,6 +84,9 @@ impl<T: Scrollable> ScrollingSelector<T> {
         }
     }
 
+    /// Get a reference to the `i`th widget, if it exists.
+    ///
+    /// Will return [None] if the widget does not exist.
     pub fn get(&self, i: usize) -> Option<&T> {
         self.widgets.get(i)
     }
