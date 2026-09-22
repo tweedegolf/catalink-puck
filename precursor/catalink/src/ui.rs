@@ -11,7 +11,7 @@ use widgets::WidgetEvent;
 use xous::MessageEnvelope;
 use xous_ipc::Buffer;
 
-use crate::ui::screens::UiScreen;
+use crate::{system::System, ui::screens::UiScreen};
 
 #[derive(Debug, num_derive::FromPrimitive, num_derive::ToPrimitive, Copy, Clone)]
 enum RawUiEvent {
@@ -120,10 +120,11 @@ pub struct Ui {
     events: Vec<UiEvent>,
     needs_redraw: bool,
     running: bool,
+    pub system: System,
 }
 
 impl Ui {
-    pub fn new(xns: &xous_names::XousNames, sid: xous::SID) -> Self {
+    pub fn new(xns: &xous_names::XousNames, sid: xous::SID, system: System) -> Self {
         let gam = gam::Gam::new(&xns).expect("Can't connect to GAM");
         let gam_token = gam
             .register_ux(gam::UxRegistration {
@@ -153,6 +154,7 @@ impl Ui {
             events: Vec::new(),
             needs_redraw: false,
             running: true,
+            system,
         }
     }
 

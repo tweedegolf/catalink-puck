@@ -36,6 +36,7 @@ struct Key {
 mod db;
 use chrono::{DateTime, Utc};
 use db::PRINCIPALS;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum MsgType {
@@ -174,6 +175,7 @@ where
 }
 
 /// A struct representing a valid message
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidatedMessage {
     pub sender: String,
     pub recipients: Vec<String>,
