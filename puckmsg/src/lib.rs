@@ -83,6 +83,7 @@ pub enum ValidateError {
     SpoofAttempt { actual: ID, pretended: ID },
     Crypto(aead::Error),
     KeyError(KeyID),
+    DuplicateKeysInDatabase(KeyID),
 }
 
 const VERSION: [u8; 4] = *b"HOT3";
@@ -197,9 +198,13 @@ pub fn validate(blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
     let origin_key_id = KeyID(u32::from_be_bytes(*rcpt_key_id));
     let nonce = (*nonce).into();
 
-    let Some(origin) = PRINCIPALS.values().find(|x| x.their.id == origin_key_id) else {
+    let mut origins = PRINCIPALS.values().filter(|x| x.their.id == origin_key_id);
+    let Some(origin) = origins.next() else {
         return Err(ValidateError::KeyError(origin_key_id));
     };
+    if origins.count() > 0 {
+        return Err(ValidateError::DuplicateKeysInDatabase(origin_key_id));
+    }
 
     use chacha20poly1305::{
         KeyInit, XChaCha20Poly1305,
@@ -250,7 +255,7 @@ pub fn validate(blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
     }
 
     //TODO: we can simply plug the correct value in if we stop using HashMap
-    let sender = reverse_lookup(true_origin).expect("true_origin to be present");
+    let sender = reverse_lookup(sender).expect("true origin to be present");
 
     let num = u16::from_be_bytes(*num);
     if num > 100 {
