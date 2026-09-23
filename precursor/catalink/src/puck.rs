@@ -57,7 +57,7 @@ impl ReadOperation<'_> {
                 return Err(Error::UnexpectedResponse);
             };
 
-            let message = puckmsg::validate(&contents);
+            let message = puckmsg::validate(&crate::data::principals::PRINCIPALS, &contents);
             Ok(message?)
         })
     }
@@ -124,7 +124,7 @@ impl Puck {
         let mut count = 0usize;
         for entry in self.get("in")?.iter() {
             let Ok(entry) = entry else {
-                log::warn!("Invalid message received, ignoring");
+                log::warn!("Invalid message {entry:?} received, ignoring");
                 continue;
             };
 

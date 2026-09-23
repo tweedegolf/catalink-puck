@@ -1,5 +1,6 @@
 //! Descriptions of persistently stored data.
 
+pub mod principals;
 pub mod stubs;
 
 use chrono::DateTime;

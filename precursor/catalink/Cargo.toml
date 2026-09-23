@@ -21,6 +21,7 @@ pddb = { path = "../../services/pddb" }
 trng = { path = "../../services/trng" }
 puckfs = { path = "../../services/puckfs" }
 puckmsg = { path = "../../services/puckmsg" }
+base64ct = "1.8.3"
 thiserror = "2.0.20"
 postcard = { version = "1.1.3", features = ["use-std"] }
 serde = "1.0"

@@ -4,6 +4,8 @@ use puckmsg::{PrincipalsDb, ValidatedMessage};
 use puckdemo::Rng;
 
 mod blocking {
+    use std::time::SystemTime;
+
     use rand::thread_rng;
 
     use super::*;
@@ -46,14 +48,14 @@ mod blocking {
     }
 
     fn post(db: &PrincipalsDb, broker: &mut Broker<Rng>) {
-        let rcpts = ["gopuck"];
-        for (who, data) in rcpts
-            .iter()
-            .zip(puckmsg::envelope(db, "eric", rcpts, "Hello world!", broker.nonce()).unwrap())
-        {
+        let rcpts = ["United Kingdom", "United States"];
+        let timestamp = SystemTime::UNIX_EPOCH.elapsed().unwrap().as_secs();
+        for (who, data) in rcpts.iter().zip(
+            puckmsg::envelope(db, "Russia", rcpts, "This is test message", broker.nonce()).unwrap(),
+        ) {
             broker
                 .send(OutMessage::WriteFile(
-                    format!("{who}/test").as_bytes(),
+                    format!("in/{timestamp}-{who}").as_bytes(),
                     &data,
                 ))
                 .unwrap();
@@ -64,12 +66,12 @@ mod blocking {
     }
 
     fn get(db: &PrincipalsDb, broker: &mut Broker<Rng>) {
-        for entry in dir(broker, "gopuck/").iter() {
+        for entry in dir(broker, "in/").iter() {
             //FIXME: we should ideally have a "Path" type
             let name = String::from_utf8_lossy(entry.file_name);
             println!("[{name}]");
             broker
-                .send(OutMessage::ReadFile(format!("gopuck/{name}").as_bytes()))
+                .send(OutMessage::ReadFile(format!("in/{name}").as_bytes()))
                 .unwrap();
 
             let InMessage::ReadFile(contents) = recv(broker) else {
@@ -140,6 +142,6 @@ fn block_on<F: std::future::Future>(fut: F) -> F::Output {
 fn main() {
     println!("--demonstrator--");
     blocking::demo();
-    println!("--async demonstrator--");
-    block_on(asynchronous::demo());
+    // println!("--async demonstrator--");
+    // block_on(asynchronous::demo());
 }
