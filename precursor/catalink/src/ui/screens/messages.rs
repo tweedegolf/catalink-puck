@@ -5,6 +5,7 @@ use crate::ui::UiEvent::ChangeScreen;
 use crate::ui::screens::UiScreen;
 use crate::ui::screens::compose::Compose;
 use crate::ui::screens::contacts::Contacts;
+use crate::ui::screens::syncing::Syncing;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
 use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget};
@@ -179,10 +180,12 @@ impl UiScreen for Messages {
                 ui.add_event(UiEvent::ChangeScreen(compose_screen));
             }
             UiEvent::Keys(keys) => {
-                log::info!("keys: {keys:?}");
                 if keys.is_pressed(&Key::Fn1) {
                     let contacts_screen = Box::new(Contacts::new(ui));
                     ui.add_event(ChangeScreen(contacts_screen));
+                } else if keys.is_pressed(&Key::Fn2) {
+                    let syncing_screen = Box::new(Syncing::new(ui));
+                    ui.add_event(UiEvent::ChangeScreen(syncing_screen));
                 }
             }
             _ => (),

@@ -2,6 +2,7 @@
 #![cfg_attr(target_os = "none", no_main)]
 
 mod data;
+mod puck;
 mod system;
 mod ui;
 
@@ -25,7 +26,7 @@ fn main() -> ! {
 
     let mut ui = Ui::new(&xns, sid, System::new());
 
-    let starting_screen = Box::new(crate::ui::screens::contacts::Contacts::new(&mut ui));
+    let starting_screen = Box::new(crate::ui::screens::syncing::Syncing::new(&mut ui));
     ui.run(starting_screen);
 
     log::info!("Quitting");
