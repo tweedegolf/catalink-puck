@@ -323,6 +323,7 @@ dependencies = [
 name = "puckdemo"
 version = "0.1.0"
 dependencies = [
+ "base64ct",
  "puckfs",
  "puckmsg",
  "rand",

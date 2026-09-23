@@ -9,3 +9,4 @@ puckmsg = { path = "../puckmsg" }
 puckfs = { path = "../puckfs" }
 
 rand = { version = "0.8.5", default-features = false, features = ["std", "std_rng"] }
+base64ct = "1.8.3"

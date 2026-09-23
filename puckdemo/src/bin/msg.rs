@@ -1,5 +1,5 @@
 use puckfs::{Broker, DirView, InMessage, OutMessage, RecvError};
-use puckmsg::ValidatedMessage;
+use puckmsg::{PrincipalsDb, ValidatedMessage};
 
 use puckdemo::Rng;
 
@@ -45,11 +45,11 @@ mod blocking {
         entries
     }
 
-    fn post(broker: &mut Broker<Rng>) {
+    fn post(db: &PrincipalsDb, broker: &mut Broker<Rng>) {
         let rcpts = ["gopuck"];
         for (who, data) in rcpts
             .iter()
-            .zip(puckmsg::envelope("eric", rcpts, "Hello world!", broker.nonce()).unwrap())
+            .zip(puckmsg::envelope(db, "eric", rcpts, "Hello world!", broker.nonce()).unwrap())
         {
             broker
                 .send(OutMessage::WriteFile(
@@ -63,7 +63,7 @@ mod blocking {
         }
     }
 
-    fn get(broker: &mut Broker<Rng>) {
+    fn get(db: &PrincipalsDb, broker: &mut Broker<Rng>) {
         for entry in dir(broker, "gopuck/").iter() {
             //FIXME: we should ideally have a "Path" type
             let name = String::from_utf8_lossy(entry.file_name);
@@ -80,7 +80,7 @@ mod blocking {
                 recipients,
                 body,
                 time,
-            } = puckmsg::validate(&contents).unwrap();
+            } = puckmsg::validate(db, &contents).unwrap();
             println!("{sender:?}");
             println!("{recipients:?}");
             println!("{time:?}");
@@ -89,10 +89,11 @@ mod blocking {
     }
 
     pub fn demo() {
+        let db = &puckdemo::PRINCIPALS;
         let mut broker = handshake("localhost:14400");
 
-        post(&mut broker);
-        get(&mut broker);
+        post(db, &mut broker);
+        get(db, &mut broker);
     }
 }
 
@@ -100,15 +101,17 @@ mod asynchronous {
     use puckmsg::{ValidatedMessage, async_api::*};
 
     pub async fn demo() {
+        let db = &puckdemo::PRINCIPALS;
+
         let mut broker = puckfs::Broker::open("localhost:14400", rand::thread_rng()).unwrap();
 
         handshake(&mut broker).await.unwrap();
 
-        post(&mut broker, "eric", &["gopuck"], "Hello Async!")
+        post(db, &mut broker, "eric", &["gopuck"], "Hello Async!")
             .await
             .unwrap();
 
-        for entry in get(&mut broker, "gopuck").await.unwrap() {
+        for entry in get(db, &mut broker, "gopuck").await.unwrap() {
             let ValidatedMessage {
                 sender,
                 recipients,

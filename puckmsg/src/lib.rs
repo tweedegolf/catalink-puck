@@ -11,10 +11,12 @@ pub struct ID(pub u32);
 pub struct KeyID(pub u32);
 
 /// A "Principal" as contained in the database.
+/// TODO: In  mature code this should be better shielded against
+/// programming mistakes (e.g. less easy to get key material out)
 pub struct Principal {
-    id: ID,
-    our: Key,
-    their: Key,
+    pub id: ID,
+    pub our: Key,
+    pub their: Key,
 }
 
 impl std::fmt::Debug for Principal {
@@ -28,14 +30,14 @@ impl std::fmt::Debug for Principal {
 }
 
 #[derive(zeroize::Zeroize)]
-struct Key {
-    id: KeyID,
-    secret: Vec<u8>,
+pub struct Key {
+    pub id: KeyID,
+    pub secret: Vec<u8>,
 }
 
-mod db;
+pub type PrincipalsDb<'a> = std::collections::HashMap<&'a str, Principal>;
+
 use chrono::{DateTime, Utc};
-use db::PRINCIPALS;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -83,6 +85,7 @@ pub enum ValidateError {
     SpoofAttempt { actual: ID, pretended: ID },
     Crypto(aead::Error),
     KeyError(KeyID),
+    DuplicateKeysInDatabase(KeyID),
 }
 
 const VERSION: [u8; 4] = *b"HOT3";
@@ -91,6 +94,7 @@ const VERSION: [u8; 4] = *b"HOT3";
 /// This expects: `sender` to contain the nickname of the sender, and `recipients` to
 /// be a collection of nicknames of recipients.
 pub fn envelope<Iter>(
+    db: &PrincipalsDb,
     sender: &str,
     recipients: Iter,
     content: &str,
@@ -99,10 +103,11 @@ pub fn envelope<Iter>(
 where
     Iter: IntoIterator<Item: AsRef<str>>,
 {
-    generic_envelope(sender, recipients, content, MsgType::Plain, nonce)
+    generic_envelope(db, sender, recipients, content, MsgType::Plain, nonce)
 }
 
 fn generic_envelope<Iter>(
+    db: &PrincipalsDb,
     sender: &str,
     recipients: Iter,
     content: &str,
@@ -114,7 +119,7 @@ where
 {
     let now: u64 = Utc::now().timestamp() as u64;
 
-    let Some(sender): Option<&Principal> = PRINCIPALS.get(sender) else {
+    let Some(sender): Option<&Principal> = db.get(sender) else {
         return Err(EnvelopeError::UnknownNick(sender.to_string()));
     };
 
@@ -122,7 +127,7 @@ where
         .into_iter()
         .map(|nick| {
             let nick = nick.as_ref();
-            PRINCIPALS.get(nick).ok_or_else(|| nick.to_string())
+            db.get(nick).ok_or_else(|| nick.to_string())
         })
         .collect()
     {
@@ -185,7 +190,7 @@ pub struct ValidatedMessage {
 
 /// Validate and parse a received message. If succesful, this return the nickname of the
 /// sender, the nicknames of the recipients, and the raw message contents.
-pub fn validate(blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
+pub fn validate(db: &PrincipalsDb, blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
     let (rcpt_key_id, blob) = blob
         .split_first_chunk::<4>()
         .ok_or(ValidateError::IncompleteData)?;
@@ -197,9 +202,13 @@ pub fn validate(blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
     let origin_key_id = KeyID(u32::from_be_bytes(*rcpt_key_id));
     let nonce = (*nonce).into();
 
-    let Some(origin) = PRINCIPALS.values().find(|x| x.their.id == origin_key_id) else {
+    let mut origins = db.values().filter(|x| x.their.id == origin_key_id);
+    let Some(origin) = origins.next() else {
         return Err(ValidateError::KeyError(origin_key_id));
     };
+    if origins.count() > 0 {
+        return Err(ValidateError::DuplicateKeysInDatabase(origin_key_id));
+    }
 
     use chacha20poly1305::{
         KeyInit, XChaCha20Poly1305,
@@ -250,7 +259,7 @@ pub fn validate(blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
     }
 
     //TODO: we can simply plug the correct value in if we stop using HashMap
-    let sender = reverse_lookup(true_origin).expect("true_origin to be present");
+    let sender = reverse_lookup(db, sender).expect("true origin to be present");
 
     let num = u16::from_be_bytes(*num);
     if num > 100 {
@@ -265,7 +274,7 @@ pub fn validate(blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
             .ok_or(ValidateError::MalformedAuthData)?;
         let cc = u32::from_be_bytes(*cc);
 
-        let nick = reverse_lookup(ID(cc))
+        let nick = reverse_lookup(db, ID(cc))
             .map(ToOwned::to_owned)
             .unwrap_or(format!("unknown-{cc}"));
 
@@ -283,9 +292,6 @@ pub fn validate(blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
     Ok(message)
 }
 
-fn reverse_lookup(id: ID) -> Option<&'static str> {
-    PRINCIPALS
-        .iter()
-        .find(|(_, p)| p.id == id)
-        .map(|(nick, _)| *nick)
+fn reverse_lookup<'a>(db: &PrincipalsDb<'a>, id: ID) -> Option<&'a str> {
+    db.iter().find(|(_, p)| p.id == id).map(|(nick, _)| *nick)
 }

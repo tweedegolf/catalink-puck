@@ -115,6 +115,7 @@ pub async fn dir<R: rand_core::RngCore>(
 
 /// Post a message with sender (`from`) and receivers (`to`) indicated by their nicknames.
 pub async fn post<R: rand_core::RngCore>(
+    db: &super::PrincipalsDb<'_>,
     broker: &mut Broker<R>,
     from: &str,
     to: &[&str],
@@ -124,7 +125,7 @@ pub async fn post<R: rand_core::RngCore>(
 
     for (who, data) in to
         .iter()
-        .zip(super::envelope(from, to, contents, broker.nonce())?)
+        .zip(super::envelope(db, from, to, contents, broker.nonce())?)
     {
         let ts = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         expect! {
@@ -143,6 +144,7 @@ pub async fn post<R: rand_core::RngCore>(
 /// Retrieve messages from a named inbox (this would typically be a nickname), and
 /// delete them upon succesful reception.
 pub async fn get<R: rand_core::RngCore>(
+    db: &super::PrincipalsDb<'_>,
     broker: &mut Broker<R>,
     inbox: &str,
 ) -> Result<Vec<Result<ValidatedMessage, ValidateError>>, CmdError> {
@@ -158,7 +160,7 @@ pub async fn get<R: rand_core::RngCore>(
         expect! { broker.send(OutMessage::ReadFile(format!("{inbox}{name}").as_bytes()))? };
         expect! { let InMessage::ReadFile(contents) = broker.read()? };
 
-        let result = super::validate(&contents);
+        let result = super::validate(db, &contents);
 
         if result.is_ok() {
             delete(broker, &format!("{inbox}{name}")).await?;
