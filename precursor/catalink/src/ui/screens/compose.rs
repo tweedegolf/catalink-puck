@@ -4,6 +4,7 @@ use crate::puck::Puck;
 use crate::ui::UiEvent::ChangeScreen;
 use crate::ui::screens::UiScreen;
 use crate::ui::screens::contacts::Contacts;
+use crate::ui::screens::select_contacts::SelectContacts;
 use crate::ui::screens::syncing::Syncing;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::text_editor::TextEditor;
@@ -128,6 +129,10 @@ impl UiScreen for Compose {
                 if keys.is_pressed(&Key::Fn1) {
                     let contacts_screen = Box::new(Contacts::new(ui));
                     ui.add_event(ChangeScreen(contacts_screen));
+                } else if keys.is_pressed(&Key::Fn2) {
+                    let select_contacts_screen =
+                        Box::new(SelectContacts::new(ui, &self.recipients));
+                    ui.add_event(ChangeScreen(select_contacts_screen));
                 } else if keys.is_pressed(&Key::Fn4) {
                     let mut puck = Puck::new().unwrap();
                     puck.send(
