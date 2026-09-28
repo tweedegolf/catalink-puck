@@ -216,7 +216,7 @@ impl UiScreen for Contacts {
             }
             UiEvent::Keys(keys) => {
                 if keys.is_pressed(&Key::Fn1) {
-                    let compose_screen = Box::new(SelectContacts::new(ui));
+                    let compose_screen = Box::new(SelectContacts::new(ui, &Vec::new()));
                     ui.add_event(UiEvent::ChangeScreen(compose_screen));
                 } else if keys.is_pressed(&Key::Fn2) {
                     let syncing_screen = Box::new(Syncing::new(ui));

@@ -106,7 +106,7 @@ pub struct SelectContacts {
 }
 
 impl SelectContacts {
-    pub fn new(ui: &mut Ui) -> SelectContacts {
+    pub fn new(ui: &mut Ui, initial_recipients: &Vec<String>) -> SelectContacts {
         let mut selector = ScrollingSelector::new(ui.screen_size.y - 40);
 
         const CURSOR_Y_OFFSET: isize = 60;
@@ -114,10 +114,16 @@ impl SelectContacts {
 
         for (contact_i, contact) in contacts.enumerate() {
             let contact = contact.unwrap();
+
+            let marked = initial_recipients
+                .iter()
+                .find(|other| *other == &contact.name)
+                .is_some();
+
             selector.add(Contact {
                 inner: contact,
                 selected: false,
-                marked: false,
+                marked,
                 position: Point {
                     x: 0,
                     y: contact_i as isize * CURSOR_Y_OFFSET,
