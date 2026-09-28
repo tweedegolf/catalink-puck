@@ -278,6 +278,10 @@ impl TextEditor {
         ui.post_textview(&mut input_tv)?;
         Ok(())
     }
+
+    pub fn text(&self) -> &str {
+        &self.line
+    }
 }
 
 impl Drawable for TextEditor {

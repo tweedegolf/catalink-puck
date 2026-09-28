@@ -1,11 +1,13 @@
 use std::fmt::Write;
 
+use crate::puck::Puck;
 use crate::ui::UiEvent::ChangeScreen;
 use crate::ui::screens::UiScreen;
 use crate::ui::screens::contacts::Contacts;
+use crate::ui::screens::syncing::Syncing;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::text_editor::TextEditor;
-use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget};
+use crate::ui::widgets::{Drawable, Widget};
 use crate::ui::{Key, Ui, UiEvent};
 
 use gam::{GlyphStyle, Line, Point, Rectangle, RoundedRectangle, TextBounds, TextView};
@@ -124,10 +126,21 @@ impl UiScreen for Compose {
     fn handle_event(&mut self, ui: &mut Ui, event: UiEvent) -> Result<(), xous::Error> {
         match &event {
             UiEvent::Keys(keys) => {
-                log::info!("keys: {keys:?}");
                 if keys.is_pressed(&Key::Fn1) {
                     let contacts_screen = Box::new(Contacts::new(ui));
                     ui.add_event(ChangeScreen(contacts_screen));
+                } else if keys.is_pressed(&Key::Fn4) {
+                    let mut puck = Puck::new().unwrap();
+                    puck.send(
+                        &ui.system.our_contact().name,
+                        &self.receivers,
+                        self.text_editor.text(),
+                    )
+                    .unwrap();
+                    drop(puck); // Ensure we drop the broker, otherwise our socket is still in use.
+
+                    let syncing_screen = Box::new(Syncing::new(ui));
+                    ui.add_event(ChangeScreen(syncing_screen));
                 }
             }
             _ => (),
