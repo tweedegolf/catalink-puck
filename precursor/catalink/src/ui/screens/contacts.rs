@@ -2,8 +2,8 @@ use std::fmt::Write;
 
 use crate::data;
 use crate::ui::screens::UiScreen;
-use crate::ui::screens::compose::Compose;
 use crate::ui::screens::messages::Messages;
+use crate::ui::screens::select_contacts::SelectContacts;
 use crate::ui::screens::syncing::Syncing;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
@@ -216,7 +216,7 @@ impl UiScreen for Contacts {
             }
             UiEvent::Keys(keys) => {
                 if keys.is_pressed(&Key::Fn1) {
-                    let compose_screen = Box::new(Compose::new(ui));
+                    let compose_screen = Box::new(SelectContacts::new(ui));
                     ui.add_event(UiEvent::ChangeScreen(compose_screen));
                 } else if keys.is_pressed(&Key::Fn2) {
                     let syncing_screen = Box::new(Syncing::new(ui));

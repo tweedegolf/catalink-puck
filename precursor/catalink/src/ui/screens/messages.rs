@@ -9,7 +9,7 @@ use crate::ui::screens::syncing::Syncing;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
 use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget};
-use crate::ui::{Key, Ui, UiEvent, WidgetEvent};
+use crate::ui::{Key, Ui, UiEvent};
 
 use gam::{GlyphStyle, Line, Point, TextBounds, TextView};
 
@@ -175,10 +175,10 @@ impl UiScreen for Messages {
     fn handle_event(&mut self, ui: &mut Ui, event: UiEvent) -> Result<(), xous::Error> {
         self.selector.handle_event(ui, &event)?;
         match event {
-            UiEvent::WidgetEvent(WidgetEvent::Selected(_selection)) => {
-                let compose_screen = Box::new(Compose::new(ui));
-                ui.add_event(UiEvent::ChangeScreen(compose_screen));
-            }
+            // UiEvent::WidgetEvent(WidgetEvent::Selected(_selection)) => {
+            //     let compose_screen = Box::new(Compose::new(ui));
+            //     ui.add_event(UiEvent::ChangeScreen(compose_screen));
+            // }
             UiEvent::Keys(keys) => {
                 if keys.is_pressed(&Key::Fn1) {
                     let contacts_screen = Box::new(Contacts::new(ui));
