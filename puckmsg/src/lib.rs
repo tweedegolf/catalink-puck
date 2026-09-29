@@ -82,7 +82,7 @@ pub enum EnvelopeError {
 pub enum ValidateError {
     IncompleteData,
     MalformedAuthData,
-    SpoofAttempt { actual: ID, pretended: ID },
+    SpoofAttempt { actual: ID },
     Crypto(aead::Error),
     KeyError(KeyID),
     DuplicateKeysInDatabase(KeyID),
@@ -191,7 +191,7 @@ pub struct ValidatedMessage {
 /// Validate and parse a received message. If succesful, this return the nickname of the
 /// sender, the nicknames of the recipients, and the raw message contents.
 pub fn validate(db: &PrincipalsDb, blob: &[u8]) -> Result<ValidatedMessage, ValidateError> {
-    let (rcpt_key_id, blob) = blob
+    let (key_id, blob) = blob
         .split_first_chunk::<4>()
         .ok_or(ValidateError::IncompleteData)?;
 
@@ -199,15 +199,26 @@ pub fn validate(db: &PrincipalsDb, blob: &[u8]) -> Result<ValidatedMessage, Vali
         .split_first_chunk()
         .ok_or(ValidateError::IncompleteData)?;
 
-    let origin_key_id = KeyID(u32::from_be_bytes(*rcpt_key_id));
+    let key_id = KeyID(u32::from_be_bytes(*key_id));
     let nonce = (*nonce).into();
 
-    let mut origins = db.values().filter(|x| x.their.id == origin_key_id);
-    let Some(origin) = origins.next() else {
-        return Err(ValidateError::KeyError(origin_key_id));
+    // Figure out which keys and their principals might be used for this message.
+    let mut encrypted_for_parties = db.values().filter_map(|x| {
+        if x.their.id == key_id {
+            Some((x, &x.their))
+        } else if x.our.id == key_id {
+            Some((x, &x.our))
+        } else {
+            None
+        }
+    });
+
+    // Only one principal should be valid though, so enforce that.
+    let Some((encrypted_for, key)) = encrypted_for_parties.next() else {
+        return Err(ValidateError::KeyError(key_id));
     };
-    if origins.count() > 0 {
-        return Err(ValidateError::DuplicateKeysInDatabase(origin_key_id));
+    if encrypted_for_parties.count() > 0 {
+        return Err(ValidateError::DuplicateKeysInDatabase(key_id));
     }
 
     use chacha20poly1305::{
@@ -216,12 +227,12 @@ pub fn validate(db: &PrincipalsDb, blob: &[u8]) -> Result<ValidatedMessage, Vali
     };
 
     let cipher = XChaCha20Poly1305::new(
-        (&*origin.their.secret)
+        (&*key.secret)
             .try_into()
-            .map_err(|_| ValidateError::KeyError(origin.their.id))?,
+            .map_err(|_| ValidateError::KeyError(key.id))?,
     );
 
-    let aad = &origin.their.id.0.to_be_bytes();
+    let aad = &key.id.0.to_be_bytes();
     let plaintext = cipher
         .decrypt(&nonce, Payload { msg, aad })
         .map_err(ValidateError::Crypto)?;
@@ -248,37 +259,42 @@ pub fn validate(db: &PrincipalsDb, blob: &[u8]) -> Result<ValidatedMessage, Vali
     let timestamp = u64::from_be_bytes(*timestamp);
 
     let time = chrono::DateTime::UNIX_EPOCH + Duration::from_secs(timestamp);
-    let sender = ID(u32::from_be_bytes(*sender));
-
-    let true_origin = origin.id;
-    if sender != true_origin {
-        return Err(ValidateError::SpoofAttempt {
-            actual: true_origin,
-            pretended: sender,
-        });
-    }
+    let sender_id = ID(u32::from_be_bytes(*sender));
+    let encrypted_by_sender = sender_id == encrypted_for.id;
 
     //TODO: we can simply plug the correct value in if we stop using HashMap
-    let sender = reverse_lookup(db, sender).expect("true origin to be present");
+    let sender = reverse_lookup(db, sender_id).expect("true origin to be present");
 
     let num = u16::from_be_bytes(*num);
     if num > 100 {
         return Err(ValidateError::MalformedAuthData);
     }
 
+    let mut encrypted_for_cc = false;
     let mut cc_list = Vec::new();
     for _ in 0..num {
         let cc;
         (cc, plaintext) = plaintext
             .split_first_chunk()
             .ok_or(ValidateError::MalformedAuthData)?;
-        let cc = u32::from_be_bytes(*cc);
+        let cc_id = ID(u32::from_be_bytes(*cc));
 
-        let nick = reverse_lookup(db, ID(cc))
+        if encrypted_for.id == cc_id {
+            encrypted_for_cc = true;
+        }
+
+        let nick = reverse_lookup(db, cc_id)
             .map(ToOwned::to_owned)
-            .unwrap_or(format!("unknown-{cc}"));
+            .unwrap_or(format!("unknown-{}", cc_id.0));
 
         cc_list.push(nick);
+    }
+
+    // Message was not encrypted+signed for either the sender or any of the receivers of the message.
+    if !encrypted_by_sender && !encrypted_for_cc {
+        return Err(ValidateError::SpoofAttempt {
+            actual: encrypted_for.id,
+        });
     }
 
     //TODO: this can be improved
