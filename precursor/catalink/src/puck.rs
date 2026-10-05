@@ -2,7 +2,12 @@
 //!
 //! Allows for downloading messages or sending messages.
 
+use core::time::Duration;
+use std::time::Instant;
+
 use crate::system::System;
+
+const TIMEOUT: Duration = Duration::from_millis(1000);
 
 pub struct Puck {
     broker: puckfs::Broker<trng::Trng>,
@@ -26,6 +31,8 @@ pub enum Error {
     ComposeError,
     #[error("Unexpected response")]
     UnexpectedResponse,
+    #[error("Receiving of a message timed out")]
+    Timeout,
 }
 
 impl From<xous::Error> for Error {
@@ -69,7 +76,6 @@ impl Puck {
     pub fn new() -> Result<Self, Error> {
         let rng = trng::Trng::new(&xous_names::XousNames::new()?)?;
         let broker = puckfs::Broker::open("localhost:14400", rng)?;
-
         let mut res = Self { broker };
         res.handshake()?;
         Ok(res)
@@ -88,7 +94,12 @@ impl Puck {
 
     /// Receive any package.
     fn recv(&mut self) -> Result<puckfs::InMessage, Error> {
+        let start = Instant::now();
         loop {
+            if start.elapsed() > TIMEOUT {
+                return Err(Error::Timeout);
+            }
+
             match self.broker.read() {
                 Ok(msg) => {
                     return Ok(msg);
@@ -144,12 +155,10 @@ impl Puck {
                 Error::ComposeError
             })?,
         ) {
-            self.broker
-                .send(puckfs::OutMessage::WriteFile(
-                    format!("in/{timestamp}-{who}").as_bytes(),
-                    &data,
-                ))
-                .unwrap();
+            self.broker.send(puckfs::OutMessage::WriteFile(
+                format!("in/{timestamp}-{who}").as_bytes(),
+                &data,
+            ))?;
             let puckfs::InMessage::WriteFile = self.recv()? else {
                 return Err(Error::UnexpectedResponse);
             };

@@ -294,7 +294,6 @@ impl Widget for TextEditor {
     fn handle_event(&mut self, ui: &mut crate::ui::Ui, event: &UiEvent) -> Result<(), xous::Error> {
         match event {
             UiEvent::Keys(keys) => {
-                log::info!("tracking keys: {:?}", keys);
                 if keys.is_pressed(&Key::Char('😊')) {
                     ui.raise_menu(gam::EMOJI_MENU_NAME)?;
                 } else {

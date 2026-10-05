@@ -40,7 +40,6 @@ pub struct Keys {
 
 impl From<usize> for Key {
     fn from(value: usize) -> Self {
-        log::info!("Char: {value}");
         match value {
             13 => Self::Enter,
             17 => Self::Fn1,
