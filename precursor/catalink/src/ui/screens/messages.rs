@@ -131,7 +131,12 @@ impl Messages {
             .filter(|message| message.is_relevant_to(&contact))
             .collect();
 
-        for message in messages {
+        for mut message in messages {
+            if !message.read {
+                message.read = true;
+                ui.system.add_message(&message, true);
+            }
+
             selector.add(Message::new(ui, message));
         }
 
