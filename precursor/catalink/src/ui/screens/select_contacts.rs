@@ -168,11 +168,6 @@ impl UiScreen for SelectContacts {
             UiEvent::WidgetEvent(WidgetEvent::Selected(selection)) => {
                 let contact = self.selector.get_mut(selection).unwrap();
                 contact.marked = !contact.marked;
-                log::info!(
-                    "Changed selection for {}: {}",
-                    contact.inner.name,
-                    contact.marked
-                );
                 ui.add_event(UiEvent::Redraw);
             }
             UiEvent::Keys(keys) => {
