@@ -1,6 +1,5 @@
-use std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
-
 use crate::data;
+use std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
 
 const CONTACTS_DICT_NAME: &'static str = "CATALINK_CONTACTS";
 const MESSAGES_DICT_NAME: &'static str = "CATALINK_MESSAGES";
@@ -33,10 +32,13 @@ impl System {
         if !dicts.contains(MESSAGES_DICT_NAME) {
             log::info!("Messages dict not initialized, loading dummy data");
             for message in data::stubs::messages() {
-                res.add_message(&data::Message {
-                    inner: message,
-                    read: false,
-                })
+                res.add_message(
+                    &data::Message {
+                        inner: message,
+                        read: false,
+                    },
+                    true,
+                )
                 .unwrap();
             }
         }
@@ -67,7 +69,6 @@ impl System {
         entries.sort_by_cached_key(|entry| entry.name.clone());
 
         Ok(entries.into_iter().map(move |entry| {
-            log::info!("Found entry: {}:{}", dict_name, entry.name);
             let mut dict_key = self
                 .pddb
                 .get(
@@ -89,20 +90,39 @@ impl System {
         }))
     }
 
+    /// Add an entry to the PDDB with serialized `item` as the contents.
+    ///
+    /// If `overwrite` is not set, will not overwrite the contents if the entry already exists.
     fn add_entry<T: serde::Serialize>(
         &mut self,
         dict_name: &str,
         key_name: &str,
         item: &T,
-    ) -> Result<(), xous::Error> {
-        let mut entry = self
-            .pddb
-            .get(dict_name, key_name, None, true, true, None, None::<fn()>)
-            .map_err(|_| xous::Error::StorageError)?;
+        overwrite: bool,
+    ) -> Result<bool, xous::Error> {
+        let mut entry_res =
+            self.pddb
+                .get(dict_name, key_name, None, false, false, None, None::<fn()>);
 
-        postcard::to_io(item, &mut entry).map_err(|_| xous::Error::SerializationError)?;
-        log::info!("Inserted {}:{}", dict_name, key_name);
-        Ok(())
+        let mut inserted = false;
+
+        // If the entry does not yet exist, insert it.
+        if let Err(e) = &entry_res
+            && e.kind() == std::io::ErrorKind::NotFound
+        {
+            entry_res = self
+                .pddb
+                .get(dict_name, key_name, None, true, true, None, None::<fn()>);
+            inserted = true;
+        }
+
+        let mut entry = entry_res.map_err(|_| xous::Error::StorageError)?;
+
+        if inserted || overwrite {
+            postcard::to_io(item, &mut entry).map_err(|_| xous::Error::SerializationError)?;
+        }
+
+        Ok(inserted)
     }
 
     /// Get all the messages stored on the device.
@@ -112,8 +132,12 @@ impl System {
         self.read_entries(MESSAGES_DICT_NAME)
     }
 
-    pub fn add_message(&mut self, message: &data::Message) -> Result<(), xous::Error> {
-        self.add_entry(MESSAGES_DICT_NAME, &message.key(), message)
+    pub fn add_message(
+        &mut self,
+        message: &data::Message,
+        overwrite: bool,
+    ) -> Result<bool, xous::Error> {
+        self.add_entry(MESSAGES_DICT_NAME, &message.key(), message, overwrite)
     }
 
     /// Get all the contacts stored on the device.
@@ -123,8 +147,8 @@ impl System {
         self.read_entries(CONTACTS_DICT_NAME)
     }
 
-    pub fn add_contact(&mut self, contact: &data::Contact) -> Result<(), xous::Error> {
-        self.add_entry(CONTACTS_DICT_NAME, &contact.name, contact)
+    pub fn add_contact(&mut self, contact: &data::Contact) -> Result<bool, xous::Error> {
+        self.add_entry(CONTACTS_DICT_NAME, &contact.name, contact, false)
     }
 
     pub fn our_contact(&self) -> data::Contact {
@@ -132,7 +156,7 @@ impl System {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ContactState {
     pub last_message: Option<data::Message>,
     pub unread_count: usize,

@@ -3,10 +3,11 @@ use std::fmt::Write;
 use crate::data;
 use crate::ui::screens::UiScreen;
 use crate::ui::screens::messages::Messages;
+use crate::ui::screens::syncing::Syncing;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
 use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget, WidgetEvent};
-use crate::ui::{Ui, UiEvent};
+use crate::ui::{Key, Ui, UiEvent};
 
 use gam::{DrawStyle, GlyphStyle, PixelColor, Point, Rectangle, RoundedRectangle, TextBounds};
 
@@ -153,6 +154,7 @@ impl Contacts {
 
         const CURSOR_Y_OFFSET: isize = 60;
         let contacts = ui.system.derive_contact_state().unwrap();
+
         for (contact_i, (contact, state)) in contacts.into_iter().enumerate() {
             selector.add(Contact {
                 inner: contact,
@@ -210,6 +212,12 @@ impl UiScreen for Contacts {
                 let contact = self.selector.get(selection).unwrap();
                 let messages_screen = Box::new(Messages::new(ui, contact.inner.clone()));
                 ui.add_event(UiEvent::ChangeScreen(messages_screen));
+            }
+            UiEvent::Keys(keys) => {
+                if keys.is_pressed(&Key::Fn2) {
+                    let syncing_screen = Box::new(Syncing::new(ui));
+                    ui.add_event(UiEvent::ChangeScreen(syncing_screen));
+                }
             }
             _ => (),
         }
