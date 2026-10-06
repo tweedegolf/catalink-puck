@@ -9,6 +9,11 @@ implementation of these choices.
 
 For an introduction of CATALINK aimed at a general audience, visit https://catalink.org/
 
+Building
+--------
+The broker that the Precursor will connect to can be set by modifying the `PUCK_BROKER` environment variable at built time.
+If that is unset, it will default to `localhost:14400` (which will not work on the actual Precursor, obviously).
+
 Organisation
 ------------
 
