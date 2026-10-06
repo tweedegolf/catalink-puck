@@ -75,7 +75,8 @@ impl ReadOperation<'_> {
 impl Puck {
     pub fn new() -> Result<Self, Error> {
         let rng = trng::Trng::new(&xous_names::XousNames::new()?)?;
-        let broker = puckfs::Broker::open("localhost:14400", rng)?;
+        let broker =
+            puckfs::Broker::open(option_env!("PUCK_BROKER").unwrap_or("localhost:14400"), rng)?;
         let mut res = Self { broker };
         res.handshake()?;
         Ok(res)
