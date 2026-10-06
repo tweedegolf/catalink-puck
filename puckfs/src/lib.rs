@@ -217,11 +217,11 @@ impl<R: rand_core::RngCore> Broker<R> {
     /// Generate a nonce.
     ///
     /// The returned value should only be used once.
-    fn nonce(&self) -> chacha20poly1305::XNonce {
-        let mut nonce = chacha20poly1305::XNonce::default();
+    fn nonce<Nonce: Default + AsMut<[u8]>>(&self) -> Nonce {
+        let mut nonce = Nonce::default();
         self.rng
             .borrow_mut()
-            .try_fill_bytes(&mut nonce)
+            .try_fill_bytes(nonce.as_mut())
             .expect("to have ample random bytes");
 
         nonce
