@@ -1,3 +1,4 @@
+use rand_core::{CryptoRng, RngCore};
 use std::{cell::RefCell, io, net, time::Duration};
 
 use thiserror::Error;
@@ -181,7 +182,7 @@ pub struct Broker<R> {
     rng: RefCell<R>,
 }
 
-impl<R: rand_core::RngCore> Broker<R> {
+impl<R: RngCore + CryptoRng> Broker<R> {
     /// Open a new connection to a puckfs broker.
     pub fn open(addr: impl net::ToSocketAddrs, rng: R) -> Result<Self, BrokerError> {
         //TODO: randomize the port
