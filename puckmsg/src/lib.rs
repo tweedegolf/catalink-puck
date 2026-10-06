@@ -98,7 +98,7 @@ pub fn envelope<Iter>(
     sender: &str,
     recipients: Iter,
     content: &str,
-    rng: &mut (impl rand_core::RngCore + rand_core::CryptoRng),
+    rng: &mut (impl rand_core::RngCore + rand_core::CryptoRng + ?Sized),
 ) -> Result<Vec<Vec<u8>>, EnvelopeError>
 where
     Iter: IntoIterator<Item: AsRef<str>>,
@@ -112,7 +112,7 @@ fn generic_envelope<Iter>(
     recipients: Iter,
     content: &str,
     msg_type: MsgType,
-    rng: &mut (impl rand_core::RngCore + rand_core::CryptoRng),
+    rng: &mut (impl rand_core::RngCore + rand_core::CryptoRng + ?Sized),
 ) -> Result<Vec<Vec<u8>>, EnvelopeError>
 where
     Iter: IntoIterator<Item: AsRef<str>>,

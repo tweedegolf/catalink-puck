@@ -1,15 +1,13 @@
 use puckfs::{Broker, DirView, InMessage, OutMessage, RecvError};
 use puckmsg::{PrincipalsDb, ValidatedMessage};
 
-use puckdemo::Rng;
-
 mod blocking {
     use std::time::SystemTime;
 
     use rand::thread_rng;
 
     use super::*;
-    fn recv(broker: &mut Broker<Rng>) -> InMessage {
+    fn recv(broker: &mut Broker) -> InMessage {
         loop {
             match broker.read() {
                 Ok(msg) => {
@@ -25,7 +23,7 @@ mod blocking {
         }
     }
 
-    fn handshake(addr: &str) -> Broker<Rng> {
+    fn handshake(addr: &str) -> Broker {
         let mut new_broker = Broker::open(addr, thread_rng()).unwrap();
         let broker = &mut new_broker;
 
@@ -38,7 +36,7 @@ mod blocking {
         new_broker
     }
 
-    fn dir(broker: &mut Broker<Rng>, dir: &str) -> DirView {
+    fn dir(broker: &mut Broker, dir: &str) -> DirView {
         broker.send(OutMessage::ReadDir(dir.as_bytes())).unwrap();
         let InMessage::ReadDir(entries) = recv(broker) else {
             panic!("unexpected response");
@@ -47,7 +45,7 @@ mod blocking {
         entries
     }
 
-    fn post(db: &PrincipalsDb, broker: &mut Broker<Rng>) {
+    fn post(db: &PrincipalsDb, broker: &mut Broker) {
         let rcpts = ["United Kingdom", "United States"];
         let timestamp = SystemTime::UNIX_EPOCH.elapsed().unwrap().as_secs();
         for (who, data) in rcpts.iter().zip(
@@ -65,7 +63,7 @@ mod blocking {
         }
     }
 
-    fn get(db: &PrincipalsDb, broker: &mut Broker<Rng>) {
+    fn get(db: &PrincipalsDb, broker: &mut Broker) {
         for entry in dir(broker, "in/").iter() {
             //FIXME: we should ideally have a "Path" type
             let name = String::from_utf8_lossy(entry.file_name);
