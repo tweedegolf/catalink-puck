@@ -1,3 +1,4 @@
+use rand_core::{CryptoRng, RngCore};
 use std::{cell::RefCell, io, net, time::Duration};
 
 use thiserror::Error;
@@ -181,7 +182,7 @@ pub struct Broker<R> {
     rng: RefCell<R>,
 }
 
-impl<R: rand_core::RngCore> Broker<R> {
+impl<R: RngCore + CryptoRng> Broker<R> {
     /// Open a new connection to a puckfs broker.
     pub fn open(addr: impl net::ToSocketAddrs, rng: R) -> Result<Self, BrokerError> {
         //TODO: randomize the port
@@ -209,15 +210,21 @@ impl<R: rand_core::RngCore> Broker<R> {
         })
     }
 
+    /// Share our internal RNG
+    pub fn rng(&mut self) -> &mut R {
+        self.rng.get_mut()
+    }
+
     /// Generate a nonce.
     ///
     /// The returned value should only be used once.
-    pub fn nonce(&self) -> chacha20poly1305::XNonce {
-        let mut nonce = chacha20poly1305::XNonce::default();
+    fn nonce<Nonce: Default + AsMut<[u8]>>(&self) -> Nonce {
+        let mut nonce = Nonce::default();
         self.rng
             .borrow_mut()
-            .try_fill_bytes(&mut nonce)
+            .try_fill_bytes(nonce.as_mut())
             .expect("to have ample random bytes");
+
         nonce
     }
 

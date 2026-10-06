@@ -51,7 +51,7 @@ mod blocking {
         let rcpts = ["United Kingdom", "United States"];
         let timestamp = SystemTime::UNIX_EPOCH.elapsed().unwrap().as_secs();
         for (who, data) in rcpts.iter().zip(
-            puckmsg::envelope(db, "Russia", rcpts, "This is test message", broker.nonce()).unwrap(),
+            puckmsg::envelope(db, "Russia", rcpts, "This is test message", broker.rng()).unwrap(),
         ) {
             broker
                 .send(OutMessage::WriteFile(
