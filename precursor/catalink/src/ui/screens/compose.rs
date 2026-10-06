@@ -1,11 +1,14 @@
 use std::fmt::Write;
 
+use crate::puck::Puck;
 use crate::ui::UiEvent::ChangeScreen;
 use crate::ui::screens::UiScreen;
 use crate::ui::screens::contacts::Contacts;
+use crate::ui::screens::select_contacts::SelectContacts;
+use crate::ui::screens::syncing::Syncing;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::text_editor::TextEditor;
-use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget};
+use crate::ui::widgets::{Drawable, Widget};
 use crate::ui::{Key, Ui, UiEvent};
 
 use gam::{GlyphStyle, Line, Point, Rectangle, RoundedRectangle, TextBounds, TextView};
@@ -16,13 +19,13 @@ const BUTTON_BAR_HEIGHT: isize = 40;
 
 pub struct Compose {
     button_bar: ButtonBar,
-    receivers: Vec<String>,
+    recipients: Vec<String>,
     text_editor: TextEditor,
     line_height: isize,
 }
 
 impl Compose {
-    pub fn new(ui: &mut Ui) -> Self {
+    pub fn new(ui: &mut Ui, recipients: Vec<String>) -> Self {
         let button_bar = ButtonBar::new(
             ui,
             BUTTON_BAR_HEIGHT,
@@ -42,9 +45,8 @@ impl Compose {
             ],
         );
 
-        let receivers = vec!["United States".to_string(), "China".to_string()];
         let line_height =
-            Self::compute_line_height(ui, &receivers).expect("Failed to compute line height");
+            Self::compute_line_height(ui, &recipients).expect("Failed to compute line height");
 
         let text_editor = TextEditor::new(Rectangle::new(
             Point::new(OUTER_MARGIN + INNER_MARGIN, INNER_MARGIN + line_height),
@@ -56,7 +58,7 @@ impl Compose {
 
         Self {
             button_bar,
-            receivers,
+            recipients,
             text_editor,
             line_height,
         }
@@ -80,7 +82,7 @@ impl Compose {
     }
 
     fn draw_receivers(&mut self, ui: &mut Ui) -> Result<(), xous::Error> {
-        let mut receivers_text = Self::receivers_textbox(ui, &self.receivers)?;
+        let mut receivers_text = Self::receivers_textbox(ui, &self.recipients)?;
         ui.post_textview(&mut receivers_text)?;
         ui.draw_line(Line::new(
             Point::new(0 + OUTER_MARGIN, self.line_height),
@@ -124,10 +126,25 @@ impl UiScreen for Compose {
     fn handle_event(&mut self, ui: &mut Ui, event: UiEvent) -> Result<(), xous::Error> {
         match &event {
             UiEvent::Keys(keys) => {
-                log::info!("keys: {keys:?}");
                 if keys.is_pressed(&Key::Fn1) {
                     let contacts_screen = Box::new(Contacts::new(ui));
                     ui.add_event(ChangeScreen(contacts_screen));
+                } else if keys.is_pressed(&Key::Fn2) {
+                    let select_contacts_screen =
+                        Box::new(SelectContacts::new(ui, &self.recipients));
+                    ui.add_event(ChangeScreen(select_contacts_screen));
+                } else if keys.is_pressed(&Key::Fn4) {
+                    let mut puck = Puck::new().unwrap();
+                    puck.send(
+                        &ui.system.our_contact().name,
+                        &self.recipients,
+                        self.text_editor.text(),
+                    )
+                    .unwrap();
+                    drop(puck); // Ensure we drop the broker, otherwise our socket is still in use.
+
+                    let syncing_screen = Box::new(Syncing::new(ui));
+                    ui.add_event(ChangeScreen(syncing_screen));
                 }
             }
             _ => (),

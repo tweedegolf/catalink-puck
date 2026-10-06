@@ -108,7 +108,6 @@ impl TextEditor {
     }
 
     pub fn update(&mut self, newkeys: &Keys, ui: &mut Ui) -> Result<Option<String>, xous::Error> {
-        let mut retstring: Option<String> = None;
         info!("updating input area");
         let mut do_redraw = false;
         for k in newkeys.iter() {
@@ -263,7 +262,7 @@ impl TextEditor {
         if do_redraw {
             ui.redraw();
         }
-        Ok(retstring)
+        Ok(None)
     }
 
     fn redraw(&mut self, ui: &mut crate::ui::Ui) -> Result<(), xous::Error> {
@@ -277,6 +276,10 @@ impl TextEditor {
             .expect("couldn't update TextView string in input canvas");
         ui.post_textview(&mut input_tv)?;
         Ok(())
+    }
+
+    pub fn text(&self) -> &str {
+        &self.line
     }
 }
 

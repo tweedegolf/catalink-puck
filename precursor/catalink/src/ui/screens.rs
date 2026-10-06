@@ -3,6 +3,7 @@ use crate::ui::{Ui, UiEvent};
 pub mod compose;
 pub mod contacts;
 pub mod messages;
+pub mod select_contacts;
 pub mod syncing;
 
 pub trait UiScreen {

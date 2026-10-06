@@ -3,13 +3,13 @@ use std::fmt::Write;
 use crate::data;
 use crate::ui::UiEvent::ChangeScreen;
 use crate::ui::screens::UiScreen;
-use crate::ui::screens::compose::Compose;
 use crate::ui::screens::contacts::Contacts;
+use crate::ui::screens::select_contacts::SelectContacts;
 use crate::ui::screens::syncing::Syncing;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
-use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget};
-use crate::ui::{Key, Ui, UiEvent, WidgetEvent};
+use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget, WidgetEvent};
+use crate::ui::{Key, Ui, UiEvent};
 
 use gam::{GlyphStyle, Line, Point, TextBounds, TextView};
 
@@ -116,6 +116,7 @@ impl Widget for Message {}
 
 pub struct Messages {
     selector: ScrollingSelector<Message>,
+    contact: data::Contact,
     button_bar: ButtonBar,
 }
 
@@ -159,6 +160,7 @@ impl Messages {
         Self {
             button_bar,
             selector,
+            contact,
         }
     }
 }
@@ -175,9 +177,18 @@ impl UiScreen for Messages {
     fn handle_event(&mut self, ui: &mut Ui, event: UiEvent) -> Result<(), xous::Error> {
         self.selector.handle_event(ui, &event)?;
         match event {
-            UiEvent::WidgetEvent(WidgetEvent::Selected(_selection)) => {
-                let compose_screen = Box::new(Compose::new(ui));
-                ui.add_event(UiEvent::ChangeScreen(compose_screen));
+            UiEvent::WidgetEvent(WidgetEvent::Selected(selection)) => {
+                let message = self.selector.get(selection).unwrap();
+                let us = ui.system.our_contact();
+                let recipients = message
+                    .inner
+                    .relevant_contacts()
+                    .filter(|contact| contact != &us)
+                    .map(|contact| contact.name)
+                    .collect();
+
+                let select_contacts_screen = Box::new(SelectContacts::new(ui, &recipients));
+                ui.add_event(UiEvent::ChangeScreen(select_contacts_screen));
             }
             UiEvent::Keys(keys) => {
                 if keys.is_pressed(&Key::Fn1) {
@@ -186,6 +197,10 @@ impl UiScreen for Messages {
                 } else if keys.is_pressed(&Key::Fn2) {
                     let syncing_screen = Box::new(Syncing::new(ui));
                     ui.add_event(UiEvent::ChangeScreen(syncing_screen));
+                } else if keys.is_pressed(&Key::Fn4) {
+                    let select_contacts_screen =
+                        Box::new(SelectContacts::new(ui, &vec![self.contact.name.clone()]));
+                    ui.add_event(UiEvent::ChangeScreen(select_contacts_screen));
                 }
             }
             _ => (),

@@ -12,16 +12,18 @@ pub struct Puck {
 pub enum Error {
     #[error("Xous error")]
     Xous,
-    #[error("The broker emitted an error")]
+    #[error("The broker emitted an error ({0})")]
     Broker(#[from] puckfs::BrokerError),
-    #[error("Failed to receive message")]
+    #[error("Failed to receive message ({0})")]
     ReceiveError(#[from] puckfs::RecvError),
-    #[error("Failed to send message")]
+    #[error("Failed to send message ({0})")]
     SendError(#[from] puckfs::SendError),
     #[error("Failed to verify or decrypt a packet")]
     CryptoError,
     #[error("Failed to validate message")]
     ValidateError,
+    #[error("Failed to compose message")]
+    ComposeError,
     #[error("Unexpected response")]
     UnexpectedResponse,
 }
@@ -117,6 +119,42 @@ impl Puck {
             dirname: dir,
             dirview,
         })
+    }
+
+    pub fn send(
+        &mut self,
+        sender: &str,
+        recipients: &Vec<String>,
+        body: &str,
+    ) -> Result<(), Error> {
+        let timestamp = std::time::SystemTime::UNIX_EPOCH
+            .elapsed()
+            .unwrap()
+            .as_secs();
+        for (who, data) in recipients.iter().zip(
+            puckmsg::envelope(
+                &crate::data::principals::PRINCIPALS,
+                sender,
+                recipients.iter(),
+                body,
+                self.broker.nonce(),
+            )
+            .map_err(|e| {
+                log::warn!("{e:?}");
+                Error::ComposeError
+            })?,
+        ) {
+            self.broker
+                .send(puckfs::OutMessage::WriteFile(
+                    format!("in/{timestamp}-{who}").as_bytes(),
+                    &data,
+                ))
+                .unwrap();
+            let puckfs::InMessage::WriteFile = self.recv()? else {
+                return Err(Error::UnexpectedResponse);
+            };
+        }
+        Ok(())
     }
 
     /// Receive messages from backend.

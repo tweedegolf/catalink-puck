@@ -90,6 +90,10 @@ impl<T: Scrollable> ScrollingSelector<T> {
     pub fn get(&self, i: usize) -> Option<&T> {
         self.widgets.get(i)
     }
+
+    pub fn get_mut(&mut self, i: usize) -> Option<&mut T> {
+        self.widgets.get_mut(i)
+    }
 }
 
 impl<T: Scrollable> Widget for ScrollingSelector<T> {
