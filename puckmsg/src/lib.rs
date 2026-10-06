@@ -98,12 +98,12 @@ pub fn envelope<Iter>(
     sender: &str,
     recipients: Iter,
     content: &str,
-    nonce: chacha20poly1305::XNonce,
+    rng: &mut impl rand_core::RngCore,
 ) -> Result<Vec<Vec<u8>>, EnvelopeError>
 where
     Iter: IntoIterator<Item: AsRef<str>>,
 {
-    generic_envelope(db, sender, recipients, content, MsgType::Plain, nonce)
+    generic_envelope(db, sender, recipients, content, MsgType::Plain, rng)
 }
 
 fn generic_envelope<Iter>(
@@ -112,7 +112,7 @@ fn generic_envelope<Iter>(
     recipients: Iter,
     content: &str,
     msg_type: MsgType,
-    nonce: chacha20poly1305::XNonce,
+    rng: &mut impl rand_core::RngCore,
 ) -> Result<Vec<Vec<u8>>, EnvelopeError>
 where
     Iter: IntoIterator<Item: AsRef<str>>,
@@ -155,7 +155,7 @@ where
 
     let ciphertexts = recipients.into_iter().map(move |rcpt| {
         use chacha20poly1305::{
-            KeyInit, XChaCha20Poly1305,
+            KeyInit, XChaCha20Poly1305, XNonce,
             aead::{Aead, Payload},
         };
 
@@ -164,6 +164,10 @@ where
                 .try_into()
                 .map_err(|_| EnvelopeError::KeyError(rcpt.our.id))?,
         );
+
+        let mut nonce = XNonce::default();
+        rng.try_fill_bytes(&mut nonce)
+            .expect("to have ample random bytes");
 
         let aad = &rcpt.our.id.0.to_be_bytes();
         let mut ciphertext = cipher

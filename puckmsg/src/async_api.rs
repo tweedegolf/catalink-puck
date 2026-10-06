@@ -125,7 +125,7 @@ pub async fn post<R: rand_core::RngCore>(
 
     for (who, data) in to
         .iter()
-        .zip(super::envelope(db, from, to, contents, broker.nonce())?)
+        .zip(super::envelope(db, from, to, contents, broker.rng())?)
     {
         let ts = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         expect! {

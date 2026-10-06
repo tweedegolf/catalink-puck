@@ -149,7 +149,7 @@ impl Puck {
                 sender,
                 recipients.iter(),
                 body,
-                self.broker.nonce(),
+                self.broker.rng(),
             )
             .map_err(|e| {
                 log::warn!("{e:?}");
