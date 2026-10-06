@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::LazyLock};
 
-use puckmsg::{Key, KeyID, Principal, ID};
+use puckmsg::{ID, Key, KeyID, Principal};
 
 pub static PRINCIPALS: LazyLock<HashMap<&str, Principal>> = LazyLock::new(|| {
     use base64ct::{Base64, Encoding};

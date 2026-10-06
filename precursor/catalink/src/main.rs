@@ -17,8 +17,11 @@ pub(crate) const SERVER_NAME_CATALINK: &str = "_CATALINK_";
 fn main() -> ! {
     const HEAP_LARGER_LIMIT: usize = 2048 * 1024;
     let new_limit = HEAP_LARGER_LIMIT;
-    let result =
-        xous::rsyscall(xous::SysCall::AdjustProcessLimit(xous::Limits::HeapMaximum as usize, 0, new_limit));
+    let result = xous::rsyscall(xous::SysCall::AdjustProcessLimit(
+        xous::Limits::HeapMaximum as usize,
+        0,
+        new_limit,
+    ));
 
     if let Ok(xous::Result::Scalar2(1, current_limit)) = result {
         xous::rsyscall(xous::SysCall::AdjustProcessLimit(
@@ -33,7 +36,12 @@ fn main() -> ! {
     }
 
     let stack_size = 1024 * 1024;
-    std::thread::Builder::new().stack_size(stack_size).spawn(wrapped_main).unwrap().join().unwrap()
+    std::thread::Builder::new()
+        .stack_size(stack_size)
+        .spawn(wrapped_main)
+        .unwrap()
+        .join()
+        .unwrap()
 }
 
 fn wrapped_main() -> ! {
