@@ -58,8 +58,8 @@ pub static PRINCIPALS: LazyLock<HashMap<&str, Principal>> = LazyLock::new(|| {
             Principal {
                 id: ID(440025887),
                 our: Key {
-                    id: KeyID(3228425804),
-                    secret: Base64::decode_vec("AGAXKLZAKUMHjMc2TcMsnAOAqDkk0pGJQSR9A8y5+Hw=")
+                    id: KeyID(4208614404),
+                    secret: Base64::decode_vec("FQwnSM+WgvGcMWmDpc8/RlDn99UkBPLadAnFspWgmGY=")
                         .unwrap(),
                 },
                 their: Key {
@@ -95,8 +95,8 @@ pub static PRINCIPALS: LazyLock<HashMap<&str, Principal>> = LazyLock::new(|| {
                         .unwrap(),
                 },
                 their: Key {
-                    id: KeyID(4208614404),
-                    secret: Base64::decode_vec("FQwnSM+WgvGcMWmDpc8/RlDn99UkBPLadAnFspWgmGY=")
+                    id: KeyID(3228425804),
+                    secret: Base64::decode_vec("AGAXKLZAKUMHjMc2TcMsnAOAqDkk0pGJQSR9A8y5+Hw=")
                         .unwrap(),
                 },
             },

@@ -274,6 +274,9 @@ pub fn validate(db: &PrincipalsDb, blob: &[u8]) -> Result<ValidatedMessage, Vali
         return Err(ValidateError::MalformedAuthData);
     }
 
+    // This check is incomplete, and only here so we can decrypt *our own* messages.
+    // But of course we cannot see if a message is really "our own" without out-of-band
+    // information (such as the user telling us). This is an important FIXME.
     let mut encrypted_for_cc = false;
     let mut cc_list = Vec::new();
     for _ in 0..num {
@@ -294,7 +297,7 @@ pub fn validate(db: &PrincipalsDb, blob: &[u8]) -> Result<ValidatedMessage, Vali
         cc_list.push(nick);
     }
 
-    // Message was not encrypted+signed for either the sender or any of the receivers of the message.
+    // Message was not encrypted for either the sender or any of the recipients of the message.
     if !encrypted_by_sender && !encrypted_for_cc {
         return Err(ValidateError::SpoofAttempt {
             actual: encrypted_for.id,
