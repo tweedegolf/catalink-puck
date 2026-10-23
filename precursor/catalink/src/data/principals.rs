@@ -54,17 +54,17 @@ pub static PRINCIPALS: LazyLock<HashMap<&str, Principal>> = LazyLock::new(|| {
             },
         ),
         (
-            "United Kingdom",
+            "China",
             Principal {
-                id: ID(440025887),
+                id: ID(860021837),
                 our: Key {
-                    id: KeyID(4208614404),
-                    secret: Base64::decode_vec("FQwnSM+WgvGcMWmDpc8/RlDn99UkBPLadAnFspWgmGY=")
+                    id: KeyID(4),
+                    secret: Base64::decode_vec("0000SM+WgvGcMWmDpc8/RlDn99UkBPLadAnFspWgmGY=")
                         .unwrap(),
                 },
                 their: Key {
-                    id: KeyID(3532457197),
-                    secret: Base64::decode_vec("s3uaF8/vIoYkqkDZetaeXfzsgr/K1fQPpnhgXdizQ2I=")
+                    id: KeyID(97),
+                    secret: Base64::decode_vec("0000F8/vIoYkqkDZetaeXfzsgr/K1fQPpnhgXdizQ2I=")
                         .unwrap(),
                 },
             },
@@ -86,15 +86,15 @@ pub static PRINCIPALS: LazyLock<HashMap<&str, Principal>> = LazyLock::new(|| {
             },
         ),
         (
-            "China",
+            "United Kingdom",
             Principal {
-                id: ID(860021837),
-                our: Key {
+                id: ID(440025887),
+                their: Key {
                     id: KeyID(3909709118),
                     secret: Base64::decode_vec("CU/4wgIoTCV9fbV7pXDnXb82vwfGk81HBHTKGUg50XI=")
                         .unwrap(),
                 },
-                their: Key {
+                our: Key {
                     id: KeyID(3228425804),
                     secret: Base64::decode_vec("AGAXKLZAKUMHjMc2TcMsnAOAqDkk0pGJQSR9A8y5+Hw=")
                         .unwrap(),
@@ -122,13 +122,13 @@ pub static PRINCIPALS: LazyLock<HashMap<&str, Principal>> = LazyLock::new(|| {
             Principal {
                 id: ID(920012415),
                 our: Key {
-                    id: KeyID(2032870825),
-                    secret: Base64::decode_vec("tQtbCs49kbp432lfJEgurQEmqCRFvLGEuD9CNAHF8eg=")
+                    id: KeyID(2716207607),
+                    secret: Base64::decode_vec("ASbUNjM9Ndmb/ilubO0yTCMB4ci7AgxywQHTEPmDofQ=")
                         .unwrap(),
                 },
                 their: Key {
-                    id: KeyID(2818687457),
-                    secret: Base64::decode_vec("uVXIz0DTx5JjnXpPx5l+iRzWKpp2ipvOv5ccqTJPTBo=")
+                    id: KeyID(60638913),
+                    secret: Base64::decode_vec("CKG68bRvSpeK0wehbRm2+uZYhkSDmYkbvpedSnXMB+0=")
                         .unwrap(),
                 },
             },
