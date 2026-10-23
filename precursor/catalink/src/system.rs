@@ -6,22 +6,35 @@ const MESSAGES_DICT_NAME: &'static str = "CATALINK_MESSAGES";
 const BUFFER_SIZE: usize = 1024;
 
 pub struct System {
+    #[cfg(feature = "persist")]
     pddb: pddb::Pddb,
+    #[cfg(not(feature = "persist"))]
+    contacts: Vec<data::Contact>,
+    #[cfg(not(feature = "persist"))]
+    messages: Vec<data::Message>,
 }
 
 impl System {
     pub fn new() -> Self {
-        let pddb = pddb::Pddb::new();
+        #[cfg(feature = "persist")]
+        let mut res = {
+            let pddb = pddb::Pddb::new();
+            let (res, _) = pddb.try_mount();
+            if !res {
+                panic!("User directed to not mount the persistent storage");
+            }
+            Self { pddb }
+        };
 
-        let (res, _) = pddb.try_mount();
-        if !res {
-            panic!("User directed to not mount the persistent storage");
-        }
-
-        let mut res = Self { pddb };
+        #[cfg(not(feature = "persist"))]
+        let mut res = Self { contacts: vec![], messages: vec![] };
 
         // If message dictionary does not exist, pre-load it with some dummy messages.
+        #[cfg(feature = "persist")]
         let dicts = res.pddb.list_dict(None).unwrap();
+        #[cfg(not(feature = "persist"))]
+        let dicts = [];
+
         let dicts: BTreeSet<String> = dicts.into_iter().collect();
         if !dicts.contains(CONTACTS_DICT_NAME) {
             log::info!("Contacts dict not initialized, loading dummy data");
@@ -52,6 +65,7 @@ impl System {
     /// Each individual message body is loaded only when the element is iterated.
     ///
     /// Sorted by key (or name) of entry.
+    #[cfg(feature = "persist")]
     fn read_entries<T: serde::de::DeserializeOwned>(
         &mut self,
         dict_name: &str,
@@ -93,6 +107,7 @@ impl System {
     /// Add an entry to the PDDB with serialized `item` as the contents.
     ///
     /// If `overwrite` is not set, will not overwrite the contents if the entry already exists.
+    #[cfg(feature = "persist")]
     fn add_entry<T: serde::Serialize>(
         &mut self,
         dict_name: &str,
@@ -129,7 +144,10 @@ impl System {
     pub fn get_messages(
         &mut self,
     ) -> Result<impl Iterator<Item = Result<data::Message, xous::Error>>, xous::Error> {
-        self.read_entries(MESSAGES_DICT_NAME)
+        #[cfg(feature = "persist")]
+        return self.read_entries(MESSAGES_DICT_NAME);
+        #[cfg(not(feature = "persist"))]
+        return Ok(self.messages.iter().cloned().map(Result::Ok));
     }
 
     pub fn add_message(
@@ -137,18 +155,39 @@ impl System {
         message: &data::Message,
         overwrite: bool,
     ) -> Result<bool, xous::Error> {
-        self.add_entry(MESSAGES_DICT_NAME, &message.key(), message, overwrite)
+        #[cfg(feature = "persist")]
+        return self.add_entry(MESSAGES_DICT_NAME, &message.key(), message, overwrite);
+        #[cfg(not(feature = "persist"))]
+        return if let Some(index) = self.messages.iter().position(|ctx| ctx.key() == message.key()) {
+            self.messages[index] = message.clone();
+            Ok(false)
+        } else {
+            self.messages.push(message.clone());
+            Ok(true)
+        };
     }
 
     /// Get all the contacts stored on the device.
     pub fn get_contacts(
         &mut self,
     ) -> Result<impl Iterator<Item = Result<data::Contact, xous::Error>>, xous::Error> {
-        self.read_entries(CONTACTS_DICT_NAME)
+        #[cfg(feature = "persist")]
+        return self.read_entries(CONTACTS_DICT_NAME);
+        #[cfg(not(feature = "persist"))]
+        return Ok(self.contacts.iter().cloned().map(Result::Ok));
     }
 
     pub fn add_contact(&mut self, contact: &data::Contact) -> Result<bool, xous::Error> {
-        self.add_entry(CONTACTS_DICT_NAME, &contact.name, contact, false)
+        #[cfg(feature = "persist")]
+        return self.add_entry(CONTACTS_DICT_NAME, &contact.name, contact, false);
+        #[cfg(not(feature = "persist"))]
+        return if let Some(index) = self.contacts.iter().position(|ctx| ctx.name == contact.name) {
+            self.contacts[index] = contact.clone();
+            Ok(false)
+        } else {
+            self.contacts.push(contact.clone());
+            Ok(true)
+        };
     }
 
     pub fn our_contact(&self) -> data::Contact {
