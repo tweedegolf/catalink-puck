@@ -138,7 +138,8 @@ impl Puck {
         sender: &str,
         recipients: &Vec<String>,
         body: &str,
-    ) -> Result<(), Error> {
+    ) -> Result<Vec<puckmsg::ValidatedMessage>, Error> {
+        let mut envelopes = Vec::new();
         let now = chrono::Utc::now();
         for (who, data) in recipients.iter().zip(
             puckmsg::envelope(
@@ -159,11 +160,20 @@ impl Puck {
                 format!("in/{timestamp}-{who}").as_bytes(),
                 &data,
             ))?;
+            // prepare a "round trip" message without actually needing to go through the Broker
+            // since we are sending a message, it is automatically validated
+            let msg = puckmsg::ValidatedMessage {
+                sender: sender.to_owned(),
+                recipients: recipients.clone(),
+                time: now,
+                body: body.into(),
+            };
+            envelopes.push(msg);
             let puckfs::InMessage::WriteFile = self.recv()? else {
                 return Err(Error::UnexpectedResponse);
             };
         }
-        Ok(())
+        Ok(envelopes)
     }
 
     /// Receive messages from backend.
