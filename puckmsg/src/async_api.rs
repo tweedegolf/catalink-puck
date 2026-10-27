@@ -6,16 +6,14 @@
 use super::{EnvelopeError, ValidateError, ValidatedMessage};
 use puckfs::{Broker, DirView, InMessage, OutMessage, RecvError, SendError};
 
-use rand_core::{CryptoRng, RngCore};
-
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-struct Listen<'a, R>(&'a mut Broker<R>);
-struct Sender<'a, R>(&'a mut Broker<R>, OutMessage<'a>);
+struct Listen<'a>(&'a mut Broker);
+struct Sender<'a>(&'a mut Broker, OutMessage<'a>);
 
-impl<R: RngCore + CryptoRng> Future for Listen<'_, R> {
+impl Future for Listen<'_> {
     type Output = Result<InMessage, RecvError>;
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let broker = &mut self.get_mut().0;
@@ -36,7 +34,7 @@ impl<R: RngCore + CryptoRng> Future for Listen<'_, R> {
     }
 }
 
-impl<R: RngCore + CryptoRng> Future for Sender<'_, R> {
+impl Future for Sender<'_> {
     type Output = Result<(), SendError>;
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let Self(broker, msg) = self.get_mut();
@@ -96,7 +94,7 @@ impl From<EnvelopeError> for CmdError {
 }
 
 /// Perform a handshake with a broker (that is already opened)
-pub async fn handshake<R: RngCore + CryptoRng>(broker: &mut Broker<R>) -> Result<(), CmdError> {
+pub async fn handshake(broker: &mut Broker) -> Result<(), CmdError> {
     expect! { broker.send(OutMessage::hello()?)? };
     expect! { let InMessage::Hello(s, r) = broker.read()? };
     broker.reposition(s, r + 1);
@@ -105,10 +103,7 @@ pub async fn handshake<R: RngCore + CryptoRng>(broker: &mut Broker<R>) -> Result
 
 /// Retrieve a directory listing from the puckfs path given by `dir`. The directory should
 /// end in a forward slash.
-pub async fn dir<R: RngCore + CryptoRng>(
-    broker: &mut Broker<R>,
-    dir: &str,
-) -> Result<DirView, CmdError> {
+pub async fn dir(broker: &mut Broker, dir: &str) -> Result<DirView, CmdError> {
     expect! { broker.send(OutMessage::ReadDir(dir.as_bytes()))? };
     expect! { let InMessage::ReadDir(entries) = broker.read()? };
 
@@ -116,9 +111,9 @@ pub async fn dir<R: RngCore + CryptoRng>(
 }
 
 /// Post a message with sender (`from`) and receivers (`to`) indicated by their nicknames.
-pub async fn post<R: RngCore + CryptoRng>(
+pub async fn post(
     db: &super::PrincipalsDb<'_>,
-    broker: &mut Broker<R>,
+    broker: &mut Broker,
     from: &str,
     to: &[&str],
     contents: &str,
@@ -145,9 +140,9 @@ pub async fn post<R: RngCore + CryptoRng>(
 
 /// Retrieve messages from a named inbox (this would typically be a nickname), and
 /// delete them upon succesful reception.
-pub async fn get<R: RngCore + CryptoRng>(
+pub async fn get(
     db: &super::PrincipalsDb<'_>,
-    broker: &mut Broker<R>,
+    broker: &mut Broker,
     inbox: &str,
 ) -> Result<Vec<Result<ValidatedMessage, ValidateError>>, CmdError> {
     let inbox = format!("{inbox}/");
@@ -175,10 +170,7 @@ pub async fn get<R: RngCore + CryptoRng>(
 }
 
 /// Delete a file on the remote puckfs broker.
-pub async fn delete<R: RngCore + CryptoRng>(
-    broker: &mut Broker<R>,
-    path: &str,
-) -> Result<(), CmdError> {
+pub async fn delete(broker: &mut Broker, path: &str) -> Result<(), CmdError> {
     expect! { broker.send(OutMessage::Remove(path.as_bytes()))? };
     expect! { let InMessage::Remove = broker.read()? };
 

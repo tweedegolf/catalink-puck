@@ -1,4 +1,3 @@
-use rand_core::{CryptoRng, RngCore};
 use std::{cell::RefCell, io, net, time::Duration};
 
 use thiserror::Error;
@@ -172,19 +171,22 @@ pub type MsgBuffer = arrayvec::ArrayVec<u8, MAX_MESSAGE_SIZE>;
 
 /// An object represents the connection to a remote puckfs broker.
 #[allow(non_snake_case)]
-pub struct Broker<R> {
+pub struct Broker {
     socket: net::UdpSocket,
     MTU: usize,
     key_id: u32,
     key: SecretKey,
     send: ringbuf::Buffer<UdpBuffer, RINGBUF_ENTRIES>,
     recv: ringbuf::Buffer<(PacketType, UdpBuffer), RINGBUF_ENTRIES>,
-    rng: RefCell<R>,
+    rng: Box<RefCell<dyn rand_core::CryptoRngCore>>,
 }
 
-impl<R: RngCore + CryptoRng> Broker<R> {
+impl Broker {
     /// Open a new connection to a puckfs broker.
-    pub fn open(addr: impl net::ToSocketAddrs, rng: R) -> Result<Self, BrokerError> {
+    pub fn open<Rng: rand_core::CryptoRngCore + 'static>(
+        addr: impl net::ToSocketAddrs,
+        rng: Rng,
+    ) -> Result<Self, BrokerError> {
         //TODO: randomize the port
         let local_port = 49152;
         let socket_addr =
@@ -206,12 +208,12 @@ impl<R: RngCore + CryptoRng> Broker<R> {
             send: ringbuf::Buffer::new(0),
             recv: ringbuf::Buffer::new(0),
             key,
-            rng: RefCell::new(rng),
+            rng: Box::new(RefCell::new(rng)),
         })
     }
 
     /// Share our internal RNG
-    pub fn rng(&mut self) -> &mut R {
+    pub fn rng(&mut self) -> &mut (impl rand_core::RngCore + rand_core::CryptoRng + ?Sized) {
         self.rng.get_mut()
     }
 

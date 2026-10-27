@@ -1,5 +1,3 @@
-pub type Rng = rand::rngs::ThreadRng;
-
 use std::collections::HashMap;
 use std::sync::LazyLock;
 

@@ -10,7 +10,7 @@ use crate::system::System;
 const TIMEOUT: Duration = Duration::from_millis(1000);
 
 pub struct Puck {
-    broker: puckfs::Broker<trng::Trng>,
+    broker: puckfs::Broker,
 }
 
 #[derive(Debug, thiserror::Error)]
