@@ -98,12 +98,13 @@ pub fn envelope<Iter>(
     sender: &str,
     recipients: Iter,
     content: &str,
+    time: DateTime<Utc>,
     rng: &mut (impl rand_core::RngCore + rand_core::CryptoRng + ?Sized),
 ) -> Result<Vec<Vec<u8>>, EnvelopeError>
 where
     Iter: IntoIterator<Item: AsRef<str>>,
 {
-    generic_envelope(db, sender, recipients, content, MsgType::Plain, rng)
+    generic_envelope(db, sender, recipients, content, time, MsgType::Plain, rng)
 }
 
 fn generic_envelope<Iter>(
@@ -111,13 +112,14 @@ fn generic_envelope<Iter>(
     sender: &str,
     recipients: Iter,
     content: &str,
+    time: DateTime<Utc>,
     msg_type: MsgType,
     rng: &mut (impl rand_core::RngCore + rand_core::CryptoRng + ?Sized),
 ) -> Result<Vec<Vec<u8>>, EnvelopeError>
 where
     Iter: IntoIterator<Item: AsRef<str>>,
 {
-    let now: u64 = Utc::now().timestamp() as u64;
+    let now = time.timestamp() as u64;
 
     let Some(sender): Option<&Principal> = db.get(sender) else {
         return Err(EnvelopeError::UnknownNick(sender.to_string()));

@@ -119,10 +119,11 @@ pub async fn post(
     contents: &str,
 ) -> Result<(), CmdError> {
     use std::time::{SystemTime, UNIX_EPOCH};
+    let now = chrono::Utc::now();
 
     for (who, data) in to
         .iter()
-        .zip(super::envelope(db, from, to, contents, broker.rng())?)
+        .zip(super::envelope(db, from, to, contents, now, broker.rng())?)
     {
         let ts = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         expect! {

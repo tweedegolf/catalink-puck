@@ -139,16 +139,14 @@ impl Puck {
         recipients: &Vec<String>,
         body: &str,
     ) -> Result<(), Error> {
-        let timestamp = std::time::SystemTime::UNIX_EPOCH
-            .elapsed()
-            .unwrap()
-            .as_secs();
+        let now = chrono::Utc::now();
         for (who, data) in recipients.iter().zip(
             puckmsg::envelope(
                 &crate::data::principals::PRINCIPALS,
                 sender,
                 recipients.iter(),
                 body,
+                now,
                 self.broker.rng(),
             )
             .map_err(|e| {
@@ -156,6 +154,7 @@ impl Puck {
                 Error::ComposeError
             })?,
         ) {
+            let timestamp = now.timestamp() as u64;
             self.broker.send(puckfs::OutMessage::WriteFile(
                 format!("in/{timestamp}-{who}").as_bytes(),
                 &data,
