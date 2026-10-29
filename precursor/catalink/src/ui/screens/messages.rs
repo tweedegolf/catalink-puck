@@ -25,7 +25,7 @@ pub struct Message {
     size: Point,
     selected: bool,
     position: Point,
-    width: isize,
+    computed_width: isize,
 }
 
 impl Message {
@@ -37,8 +37,8 @@ impl Message {
             size: Point { x: width, y: 0 },
             selected: false,
             position: Point { x: 0, y: 0 },
-            width,
             self_sent,
+            computed_width: 0,
         };
 
         let mut main_text = res.main_textview(ui);
@@ -46,14 +46,24 @@ impl Message {
             .expect("Failed to compute text bounds");
         let bounds_computed = main_text.bounds_computed.unwrap();
         res.size.y = bounds_computed.br.y - bounds_computed.tl.y + MESSAGE_MARGIN;
+        res.computed_width = bounds_computed.br.x - bounds_computed.tl.x;
         res
     }
 
     fn main_textview(&mut self, ui: &mut Ui) -> TextView {
-        let mut main_text = ui.new_textview(TextBounds::GrowableFromTl(
-            self.position + Point::new(OUTER_MARGIN, OUTER_MARGIN),
-            self.size.x as u16,
-        ));
+        println!("Self.position: {:?}", self.position);
+        let mut main_text = if self.self_sent {
+            ui.new_textview(TextBounds::GrowableFromTr(
+                self.position + Point::new(ui.screen_size.x - OUTER_MARGIN - 12, OUTER_MARGIN),
+                self.size.x as u16,
+            ))
+        } else {
+            ui.new_textview(TextBounds::GrowableFromTl(
+                self.position + Point::new(OUTER_MARGIN, OUTER_MARGIN),
+                self.size.x as u16,
+            ))
+        };
+
         main_text.rounded_border = Some(5);
         main_text.clear_area = false;
         if self.selected {
@@ -61,10 +71,10 @@ impl Message {
         }
         write!(
             main_text.text,
-            "{}{}\n\n{}",
+            "{}{:<40}\n\n{}",
             if self.self_sent { "↖" } else { "↘" },
             self.inner.inner.sender,
-            self.inner.body()
+            self.inner.body(),
         )
         .expect("Failed to write text");
         main_text
@@ -74,13 +84,29 @@ impl Message {
 impl Drawable for Message {
     fn redraw(&mut self, ui: &mut Ui) -> Result<(), xous::Error> {
         let mut main_text = self.main_textview(ui);
-        ui.draw_line(Line::new(
-            self.position + Point::new(0 + OUTER_MARGIN, LINE_HEIGHT),
-            self.position + Point::new(self.width, LINE_HEIGHT),
-        ))?;
+        if self.self_sent {
+            ui.draw_line(Line::new(
+                self.position
+                    + Point::new(ui.screen_size.x - self.computed_width - 12, LINE_HEIGHT),
+                self.position + Point::new(ui.screen_size.x - OUTER_MARGIN - 12, LINE_HEIGHT),
+            ))?;
+        } else {
+            ui.draw_line(Line::new(
+                self.position + Point::new(0 + OUTER_MARGIN, LINE_HEIGHT),
+                self.position + Point::new(self.computed_width, LINE_HEIGHT),
+            ))?;
+        }
 
         let mut time_text = ui.new_textview(TextBounds::GrowableFromTr(
-            self.position + Point::new(self.width, 3),
+            self.position
+                + Point::new(
+                    if self.self_sent {
+                        ui.screen_size.x - 12
+                    } else {
+                        self.computed_width
+                    },
+                    3,
+                ),
             100,
         ));
         time_text.clear_area = false;
