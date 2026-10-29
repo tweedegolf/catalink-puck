@@ -4,8 +4,10 @@ use crate::ui::{Ui, UiEvent};
 
 pub mod button_bar;
 pub mod scrolling_selector;
+pub mod sync_popup;
 pub mod text_editor;
 
+#[derive(Debug)]
 pub enum WidgetEvent {
     Selected(usize),
 }
@@ -14,7 +16,7 @@ pub trait Selectable {
     fn set_selected(&mut self, _selected: bool);
 }
 
-pub trait PositionAble {
+pub trait Positionable {
     fn get_size(&self) -> Point;
     fn set_position(&mut self, _position: Point);
 }

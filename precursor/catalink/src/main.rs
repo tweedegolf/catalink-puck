@@ -3,6 +3,7 @@
 
 mod data;
 mod puck;
+mod sync;
 mod system;
 mod ui;
 
