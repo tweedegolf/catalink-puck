@@ -4,14 +4,15 @@ use crate::data;
 use crate::ui::screens::UiScreen;
 use crate::ui::screens::messages::Messages;
 use crate::ui::screens::select_contacts::SelectContacts;
-use crate::ui::screens::syncing::Syncing;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
-use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget, WidgetEvent};
-use crate::ui::{Key, Ui, UiEvent};
+use crate::ui::widgets::sync_popup::SyncPopup;
+use crate::ui::widgets::{Drawable, Positionable, Selectable, Widget, WidgetEvent};
+use crate::ui::{Key, SyncEvent, Ui, UiEvent};
 
 use gam::{DrawStyle, GlyphStyle, PixelColor, Point, Rectangle, RoundedRectangle, TextBounds};
 
+const CURSOR_Y_OFFSET: isize = 60;
 const OUTER_MARGIN: isize = 2;
 const INNER_MARGIN: isize = 5;
 const HEIGHT: isize = 60;
@@ -91,7 +92,7 @@ impl Drawable for Contact {
             write!(
                 last_message.text,
                 "{}{}",
-                if _last_message.inner.sender == ui.system.our_contact().name {
+                if _last_message.inner.sender == ui.sync.our_contact().name {
                     "↖"
                 } else {
                     "↘"
@@ -126,7 +127,7 @@ impl Drawable for Contact {
     }
 }
 
-impl PositionAble for Contact {
+impl Positionable for Contact {
     fn get_size(&self) -> Point {
         Point::new(self.width, HEIGHT)
     }
@@ -147,30 +148,30 @@ impl Widget for Contact {}
 pub struct Contacts {
     selector: ScrollingSelector<Contact>,
     button_bar: ButtonBar,
+    sync_popup: SyncPopup,
+}
+
+fn build_selector(ui: &mut Ui) -> ScrollingSelector<Contact> {
+    let mut selector = ScrollingSelector::new(ui.screen_size.y - 40);
+    for (contact_i, (contact, state)) in ui.sync.state.lock().unwrap().contacts.iter().enumerate() {
+        selector.add(Contact {
+            inner: contact.clone(),
+            last_message: state.last_message.clone(),
+            unread_count: state.unread_count,
+            selected: false,
+            position: Point {
+                x: 0,
+                y: contact_i as isize * CURSOR_Y_OFFSET,
+            },
+            width: ui.screen_size.x,
+        });
+    }
+    selector.update();
+    selector
 }
 
 impl Contacts {
     pub fn new(ui: &mut Ui) -> Contacts {
-        let mut selector = ScrollingSelector::new(ui.screen_size.y - 40);
-
-        const CURSOR_Y_OFFSET: isize = 60;
-        let contacts = ui.system.derive_contact_state().unwrap();
-
-        for (contact_i, (contact, state)) in contacts.into_iter().enumerate() {
-            selector.add(Contact {
-                inner: contact,
-                last_message: state.last_message,
-                unread_count: state.unread_count,
-                selected: false,
-                position: Point {
-                    x: 0,
-                    y: contact_i as isize * CURSOR_Y_OFFSET,
-                },
-                width: ui.screen_size.x,
-            });
-        }
-        selector.update();
-
         let button_bar = ButtonBar::new(
             ui,
             40,
@@ -189,9 +190,10 @@ impl Contacts {
                     .offset(Point { x: -4, y: -4 }),
             ],
         );
-
+        let selector = build_selector(ui);
         Self {
             button_bar,
+            sync_popup: SyncPopup::new(),
             selector,
         }
     }
@@ -202,11 +204,19 @@ impl UiScreen for Contacts {
         ui.clear();
         self.selector.redraw(ui)?;
         self.button_bar.redraw(ui)?;
+        self.sync_popup.redraw(ui)?;
         ui.redraw();
         Ok(())
     }
 
     fn handle_event(&mut self, ui: &mut Ui, event: UiEvent) -> Result<(), xous::Error> {
+        self.sync_popup.handle_event(ui, &event)?;
+        if self.sync_popup.interaction_blocked() {
+            if matches!(event, UiEvent::Sync(SyncEvent::Sync)) {
+                self.selector = build_selector(ui);
+            }
+            return Ok(());
+        }
         self.selector.handle_event(ui, &event)?;
         match event {
             UiEvent::WidgetEvent(WidgetEvent::Selected(selection)) => {
@@ -219,9 +229,12 @@ impl UiScreen for Contacts {
                     let compose_screen = Box::new(SelectContacts::new(ui, &Vec::new()));
                     ui.add_event(UiEvent::ChangeScreen(compose_screen));
                 } else if keys.is_pressed(&Key::Fn2) {
-                    let syncing_screen = Box::new(Syncing::new(ui));
-                    ui.add_event(UiEvent::ChangeScreen(syncing_screen));
+                    ui.sync.sync();
+                    self.sync_popup.set_syncing(ui);
                 }
+            }
+            UiEvent::Sync(SyncEvent::LoadState) => {
+                self.selector = build_selector(ui);
             }
             _ => (),
         }

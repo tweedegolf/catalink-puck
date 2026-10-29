@@ -33,7 +33,6 @@ impl Syncing {
             ],
         );
 
-        let result = sync(&mut ui.system);
         let message = match result {
             Ok(count) => format!("Synchronized {count} message(s)"),
             Err(err) => format!("Synchronization failed\n{err}"),

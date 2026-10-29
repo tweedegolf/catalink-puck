@@ -133,12 +133,7 @@ impl Puck {
         })
     }
 
-    pub fn send(
-        &mut self,
-        sender: &str,
-        recipients: &Vec<String>,
-        body: &str,
-    ) -> Result<(), Error> {
+    pub fn send(&mut self, sender: &str, recipients: &[String], body: &str) -> Result<(), Error> {
         let timestamp = std::time::SystemTime::UNIX_EPOCH
             .elapsed()
             .unwrap()
