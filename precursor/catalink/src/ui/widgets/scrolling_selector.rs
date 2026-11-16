@@ -3,11 +3,11 @@ use gam::Point;
 use crate::ui::{
     Key, Ui,
     UiEvent::{self},
-    widgets::{Drawable, PositionAble, Selectable, Widget, WidgetEvent},
+    widgets::{Drawable, Positionable, Selectable, Widget, WidgetEvent},
 };
 
-pub trait Scrollable: Widget + Drawable + Selectable + PositionAble {}
-impl<W> Scrollable for W where W: Widget + Drawable + Selectable + PositionAble {}
+pub trait Scrollable: Widget + Drawable + Selectable + Positionable {}
+impl<W> Scrollable for W where W: Widget + Drawable + Selectable + Positionable {}
 
 pub struct ScrollingSelector<T: Scrollable> {
     widgets: Vec<T>,
@@ -130,7 +130,6 @@ impl<T: Scrollable> Widget for ScrollingSelector<T> {
             }
             _ => (),
         }
-        println!("Selected: {:?}", self.selected);
         if change {
             self.update();
         }

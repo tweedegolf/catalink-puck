@@ -5,7 +5,6 @@ use crate::ui::UiEvent::ChangeScreen;
 use crate::ui::screens::UiScreen;
 use crate::ui::screens::contacts::Contacts;
 use crate::ui::screens::select_contacts::SelectContacts;
-use crate::ui::screens::syncing::Syncing;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::text_editor::TextEditor;
 use crate::ui::widgets::{Drawable, Widget};
@@ -134,9 +133,11 @@ impl UiScreen for Compose {
                         Box::new(SelectContacts::new(ui, &self.recipients));
                     ui.add_event(ChangeScreen(select_contacts_screen));
                 } else if keys.is_pressed(&Key::Fn4) {
+                    ui.sync
+                        .send_message(self.recipients.clone(), self.text_editor.text().to_owned());
                     let mut puck = Puck::new().unwrap();
                     let envelopes = puck.send(
-                        &ui.system.our_contact().name,
+                        &ui.sync.our_contact().name,
                         &self.recipients,
                         self.text_editor.text(),
                     )
@@ -144,12 +145,12 @@ impl UiScreen for Compose {
                     drop(puck); // Ensure we drop the broker, otherwise our socket is still in use.
 
                     for inner in envelopes {
-                        ui.system
-                            .add_message(&crate::data::Message { inner, read: true }, false);
+                        ui.sync
+                            .add_message(crate::data::Message { inner, read: true });
                     }
 
-                    let syncing_screen = Box::new(Syncing::new(ui));
-                    ui.add_event(ChangeScreen(syncing_screen));
+                    let contacts = Box::new(Contacts::new(ui));
+                    ui.add_event(ChangeScreen(contacts));
                 }
             }
             _ => (),
