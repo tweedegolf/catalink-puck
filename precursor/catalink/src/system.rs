@@ -159,7 +159,9 @@ impl System {
         return self.add_entry(MESSAGES_DICT_NAME, &message.key(), message, overwrite);
         #[cfg(not(feature = "persist"))]
         return if let Some(index) = self.messages.iter().position(|ctx| ctx.key() == message.key()) {
-            self.messages[index] = message.clone();
+            if overwrite {
+                self.messages[index] = message.clone();
+            }
             Ok(false)
         } else {
             self.messages.push(message.clone());
@@ -181,8 +183,7 @@ impl System {
         #[cfg(feature = "persist")]
         return self.add_entry(CONTACTS_DICT_NAME, &contact.name, contact, false);
         #[cfg(not(feature = "persist"))]
-        return if let Some(index) = self.contacts.iter().position(|ctx| ctx.name == contact.name) {
-            self.contacts[index] = contact.clone();
+        return if let Some(_index) = self.contacts.iter().position(|ctx| ctx.name == contact.name) {
             Ok(false)
         } else {
             self.contacts.push(contact.clone());

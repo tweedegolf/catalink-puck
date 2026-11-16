@@ -138,17 +138,16 @@ impl Puck {
         sender: &str,
         recipients: &Vec<String>,
         body: &str,
-    ) -> Result<(), Error> {
-        let timestamp = std::time::SystemTime::UNIX_EPOCH
-            .elapsed()
-            .unwrap()
-            .as_secs();
+    ) -> Result<Vec<puckmsg::ValidatedMessage>, Error> {
+        let mut envelopes = Vec::new();
+        let now = chrono::Utc::now();
         for (who, data) in recipients.iter().zip(
             puckmsg::envelope(
                 &crate::data::principals::PRINCIPALS,
                 sender,
                 recipients.iter(),
                 body,
+                now,
                 self.broker.rng(),
             )
             .map_err(|e| {
@@ -156,15 +155,25 @@ impl Puck {
                 Error::ComposeError
             })?,
         ) {
+            let timestamp = now.timestamp() as u64;
             self.broker.send(puckfs::OutMessage::WriteFile(
                 format!("in/{timestamp}-{who}").as_bytes(),
                 &data,
             ))?;
+            // prepare a "round trip" message without actually needing to go through the Broker
+            // since we are sending a message, it is automatically validated
+            let msg = puckmsg::ValidatedMessage {
+                sender: sender.to_owned(),
+                recipients: recipients.clone(),
+                time: now,
+                body: body.into(),
+            };
+            envelopes.push(msg);
             let puckfs::InMessage::WriteFile = self.recv()? else {
                 return Err(Error::UnexpectedResponse);
             };
         }
-        Ok(())
+        Ok(envelopes)
     }
 
     /// Receive messages from backend.

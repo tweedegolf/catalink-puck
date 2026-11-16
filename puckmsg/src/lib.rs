@@ -82,7 +82,13 @@ pub enum EnvelopeError {
 pub enum ValidateError {
     IncompleteData,
     MalformedAuthData,
-    SpoofAttempt { actual: ID },
+    SpoofAttempt {
+        actual_sender: ID,
+        pretended_sender: String,
+        recipients: Vec<String>,
+        body: Vec<u8>,
+        time: DateTime<Utc>,
+    },
     Crypto(aead::Error),
     KeyError(KeyID),
     DuplicateKeysInDatabase(KeyID),
@@ -98,12 +104,13 @@ pub fn envelope<Iter>(
     sender: &str,
     recipients: Iter,
     content: &str,
+    time: DateTime<Utc>,
     rng: &mut (impl rand_core::RngCore + rand_core::CryptoRng + ?Sized),
 ) -> Result<Vec<Vec<u8>>, EnvelopeError>
 where
     Iter: IntoIterator<Item: AsRef<str>>,
 {
-    generic_envelope(db, sender, recipients, content, MsgType::Plain, rng)
+    generic_envelope(db, sender, recipients, content, time, MsgType::Plain, rng)
 }
 
 fn generic_envelope<Iter>(
@@ -111,13 +118,14 @@ fn generic_envelope<Iter>(
     sender: &str,
     recipients: Iter,
     content: &str,
+    time: DateTime<Utc>,
     msg_type: MsgType,
     rng: &mut (impl rand_core::RngCore + rand_core::CryptoRng + ?Sized),
 ) -> Result<Vec<Vec<u8>>, EnvelopeError>
 where
     Iter: IntoIterator<Item: AsRef<str>>,
 {
-    let now: u64 = Utc::now().timestamp() as u64;
+    let now = time.timestamp() as u64;
 
     let Some(sender): Option<&Principal> = db.get(sender) else {
         return Err(EnvelopeError::UnknownNick(sender.to_string()));
@@ -277,7 +285,6 @@ pub fn validate(db: &PrincipalsDb, blob: &[u8]) -> Result<ValidatedMessage, Vali
     // This check is incomplete, and only here so we can decrypt *our own* messages.
     // But of course we cannot see if a message is really "our own" without out-of-band
     // information (such as the user telling us). This is an important FIXME.
-    let mut encrypted_for_cc = false;
     let mut cc_list = Vec::new();
     for _ in 0..num {
         let cc;
@@ -285,10 +292,6 @@ pub fn validate(db: &PrincipalsDb, blob: &[u8]) -> Result<ValidatedMessage, Vali
             .split_first_chunk()
             .ok_or(ValidateError::MalformedAuthData)?;
         let cc_id = ID(u32::from_be_bytes(*cc));
-
-        if encrypted_for.id == cc_id {
-            encrypted_for_cc = true;
-        }
 
         let nick = reverse_lookup(db, cc_id)
             .map(ToOwned::to_owned)
@@ -298,9 +301,13 @@ pub fn validate(db: &PrincipalsDb, blob: &[u8]) -> Result<ValidatedMessage, Vali
     }
 
     // Message was not encrypted for either the sender or any of the recipients of the message.
-    if !encrypted_by_sender && !encrypted_for_cc {
+    if !encrypted_by_sender {
         return Err(ValidateError::SpoofAttempt {
-            actual: encrypted_for.id,
+            actual_sender: encrypted_for.id,
+            pretended_sender: sender.to_owned(),
+            recipients: cc_list,
+            body: plaintext.to_vec(),
+            time,
         });
     }
 
