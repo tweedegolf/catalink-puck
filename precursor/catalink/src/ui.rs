@@ -1,4 +1,5 @@
 pub mod screens;
+pub mod timers;
 pub mod widgets;
 
 use std::slice::Iter;
@@ -11,14 +12,25 @@ use widgets::WidgetEvent;
 use xous::MessageEnvelope;
 use xous_ipc::Buffer;
 
-use crate::{system::System, ui::screens::UiScreen};
+use crate::{
+    sync::{Sync, SyncError, SyncMessages, SystemState, start_sync_thread},
+    system::System,
+    ui::screens::UiScreen,
+};
+use timers::{Timer, Timers, start_timer_thread};
 
 #[derive(Debug, num_derive::FromPrimitive, num_derive::ToPrimitive, Copy, Clone)]
-enum RawUiEvent {
+pub enum RawUiEvent {
     Redraw = 0,
     Line,
     Key,
     Focus,
+    Timer,
+    LoadState,
+    Sync,
+    SyncSendSuccesFul,
+    AddContactSuccesFul,
+    SyncError,
     Quit,
 }
 
@@ -33,7 +45,7 @@ pub enum Key {
     Unknown(u32),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Keys {
     keys: [Key; 4],
 }
@@ -73,12 +85,51 @@ pub enum UiEvent {
     Redraw,
     ChangeScreen(Box<dyn UiScreen>),
     WidgetEvent(WidgetEvent),
+    Timer(u32),
+    Sync(SyncEvent),
     Quit,
 }
 
+impl std::fmt::Debug for UiEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Line(arg0) => f.debug_tuple("Line").field(arg0).finish(),
+            Self::Keys(arg0) => f.debug_tuple("Keys").field(arg0).finish(),
+            Self::Redraw => write!(f, "Redraw"),
+            Self::ChangeScreen(_) => f.debug_tuple("ChangeScreen").finish(),
+            Self::WidgetEvent(arg0) => f.debug_tuple("WidgetEvent").field(arg0).finish(),
+            Self::Timer(arg0) => f.debug_tuple("Timer").field(arg0).finish(),
+            Self::Sync(arg0) => f.debug_tuple("Sync").field(arg0).finish(),
+            Self::Quit => write!(f, "Quit"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum SyncEvent {
+    LoadState,
+    Sync,
+    SendSuccesful,
+    AddContactSuccesful,
+    Error(SyncError),
+}
+
 impl UiEvent {
-    pub fn from_xous(msg: MessageEnvelope) -> Result<UiEvent, xous::Error> {
+    pub fn from_xous(
+        msg: MessageEnvelope,
+        state: &mut SystemState,
+    ) -> Result<UiEvent, xous::Error> {
         match FromPrimitive::from_usize(msg.body.id()) {
+            Some(RawUiEvent::Timer) => {
+                if let xous::Message::Scalar(xous::ScalarMessage {
+                    id: _, arg1: k1, ..
+                }) = msg.body
+                {
+                    Ok(UiEvent::Timer(k1 as u32))
+                } else {
+                    Err(xous::Error::ParseError)
+                }
+            }
             Some(RawUiEvent::Redraw) | Some(RawUiEvent::Focus) => Ok(UiEvent::Redraw),
             Some(RawUiEvent::Line) => {
                 let buffer =
@@ -86,6 +137,15 @@ impl UiEvent {
                 let s = buffer.as_flat::<String, _>().unwrap().to_string();
                 Ok(UiEvent::Line(s))
             }
+            Some(RawUiEvent::LoadState) => Ok(UiEvent::Sync(SyncEvent::LoadState)),
+            Some(RawUiEvent::Sync) => Ok(UiEvent::Sync(SyncEvent::Sync)),
+            Some(RawUiEvent::SyncSendSuccesFul) => Ok(UiEvent::Sync(SyncEvent::SendSuccesful)),
+            Some(RawUiEvent::AddContactSuccesFul) => {
+                Ok(UiEvent::Sync(SyncEvent::AddContactSuccesful))
+            }
+            Some(RawUiEvent::SyncError) => Ok(UiEvent::Sync(SyncEvent::Error(
+                state.last_error.take().ok_or(xous::Error::NoError)?,
+            ))),
             Some(RawUiEvent::Quit) => Ok(UiEvent::Quit),
             Some(RawUiEvent::Key) => {
                 if let xous::Message::Scalar(xous::ScalarMessage {
@@ -113,13 +173,14 @@ impl UiEvent {
 
 pub struct Ui {
     pub screen_size: Point,
-    pub gam: Gam,
+    gam: Gam,
     pub sid: xous::SID,
     pub content: Gid,
     events: Vec<UiEvent>,
     needs_redraw: bool,
     running: bool,
-    pub system: System,
+    timers: Timers,
+    sync: Sync,
 }
 
 impl Ui {
@@ -145,6 +206,22 @@ impl Ui {
         let screen_size = gam
             .get_canvas_bounds(content)
             .expect("Could not get canvas dimensions");
+
+        let timers = start_timer_thread(sid, RawUiEvent::Timer.to_u32().unwrap())
+            .expect("Could not connect to timer thread");
+
+        let sync = start_sync_thread(
+            sid,
+            SyncMessages {
+                load_state: RawUiEvent::LoadState.to_u32().unwrap(),
+                sync: RawUiEvent::Sync.to_u32().unwrap(),
+                send_succesful: RawUiEvent::SyncSendSuccesFul.to_u32().unwrap(),
+                add_contact_succesful: RawUiEvent::AddContactSuccesFul.to_u32().unwrap(),
+                error: RawUiEvent::SyncError.to_u32().unwrap(),
+            },
+        )
+        .expect("Failed to start sync thread");
+
         Ui {
             screen_size,
             gam,
@@ -153,7 +230,8 @@ impl Ui {
             events: Vec::new(),
             needs_redraw: false,
             running: true,
-            system,
+            timers,
+            sync,
         }
     }
 
@@ -214,6 +292,14 @@ impl Ui {
         self.gam.raise_menu(menu)
     }
 
+    pub fn start_timer(&mut self, after: std::time::Duration) -> Timer {
+        self.timers.start(after)
+    }
+
+    pub fn redraw_now(&mut self) -> Result<(), xous::Error> {
+        self.gam.redraw()
+    }
+
     fn handle_event(
         &mut self,
         screen: &mut Box<dyn UiScreen>,
@@ -236,10 +322,18 @@ impl Ui {
 
     pub fn run(&mut self, mut screen: Box<dyn UiScreen>) {
         while self.running {
-            self.events.push(
-                UiEvent::from_xous(xous::receive_message(self.sid).unwrap())
-                    .expect("Failed to convert xous message"),
-            );
+            match UiEvent::from_xous(
+                xous::receive_message(self.sid).unwrap(),
+                &mut *self.sync.state.lock().unwrap(),
+            ) {
+                Ok(message) => {
+                    println!("Received xous event: {message:?}");
+                    self.events.push(message);
+                }
+                Err(err) => {
+                    log::error!("Failed to convert xous message: {err:?}")
+                }
+            }
             while let Some(event) = self.events.pop() {
                 self.handle_event(&mut screen, event)
                     .expect("Failed to handle event");

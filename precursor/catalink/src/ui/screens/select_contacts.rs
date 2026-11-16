@@ -6,7 +6,7 @@ use crate::ui::screens::compose::Compose;
 use crate::ui::screens::contacts::Contacts;
 use crate::ui::widgets::button_bar::{BarButton, ButtonBar};
 use crate::ui::widgets::scrolling_selector::ScrollingSelector;
-use crate::ui::widgets::{Drawable, PositionAble, Selectable, Widget, WidgetEvent};
+use crate::ui::widgets::{Drawable, Positionable, Selectable, Widget, WidgetEvent};
 use crate::ui::{Key, Ui, UiEvent};
 
 use gam::{DrawStyle, GlyphStyle, PixelColor, Point, Rectangle, RoundedRectangle, TextBounds};
@@ -82,7 +82,7 @@ impl Drawable for Contact {
     }
 }
 
-impl PositionAble for Contact {
+impl Positionable for Contact {
     fn get_size(&self) -> Point {
         Point::new(self.width, HEIGHT)
     }
@@ -110,18 +110,15 @@ impl SelectContacts {
         let mut selector = ScrollingSelector::new(ui.screen_size.y - 40);
 
         const CURSOR_Y_OFFSET: isize = 60;
-        let contacts = ui.system.get_contacts().unwrap();
 
-        for (contact_i, contact) in contacts.enumerate() {
-            let contact = contact.unwrap();
-
+        for (contact_i, contact) in ui.sync.state.lock().unwrap().contacts.keys().enumerate() {
             let marked = initial_recipients
                 .iter()
                 .find(|other| *other == &contact.name)
                 .is_some();
 
             selector.add(Contact {
-                inner: contact,
+                inner: contact.clone(),
                 selected: false,
                 marked,
                 position: Point {
