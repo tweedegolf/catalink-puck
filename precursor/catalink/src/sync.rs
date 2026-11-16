@@ -120,7 +120,7 @@ fn send(
     our_contact_name: &str,
     recipients: &Vec<String>,
     body: &str,
-) -> Result<(), crate::puck::Error> {
+) -> Result<Vec<puckmsg::ValidatedMessage>, crate::puck::Error> {
     let mut puck = crate::puck::Puck::new()?;
     puck.send(our_contact_name, recipients, body)
 }

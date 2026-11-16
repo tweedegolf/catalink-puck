@@ -136,13 +136,19 @@ impl UiScreen for Compose {
                     ui.sync
                         .send_message(self.recipients.clone(), self.text_editor.text().to_owned());
                     let mut puck = Puck::new().unwrap();
-                    puck.send(
+                    let envelopes = puck.send(
                         &ui.sync.our_contact().name,
                         &self.recipients,
                         self.text_editor.text(),
                     )
                     .unwrap();
                     drop(puck); // Ensure we drop the broker, otherwise our socket is still in use.
+
+                    for inner in envelopes {
+                        ui.sync
+                            .add_message(crate::data::Message { inner, read: true });
+                    }
+
                     let contacts = Box::new(Contacts::new(ui));
                     ui.add_event(ChangeScreen(contacts));
                 }
